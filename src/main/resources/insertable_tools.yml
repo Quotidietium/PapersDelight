@@ -1,0 +1,40 @@
+# 可插入砧板的工具及展示实体位置（相对砧板中心，跟随 facing 旋转）
+# 支持：
+#   - CE 物品 ID（如 farmersdelight:flint_knife）精确匹配
+#   - 原版物品 ID（如 minecraft:shears）精确匹配
+#   - 原版物品标签（如 "#minecraft:swords"）匹配所有同类
+#   - CE 自定义物品标签（如 "#farmersdelight:tools/knives"）
+# 每项可选字段：translate_x/y/z、scale、rotation_y、rotation_pitch、rotation_roll
+# 不设置的字段继承 default。匹配按文件顺序，先匹配到的先赢。
+
+default:
+  translate_x: 0.0
+  translate_y: 0.256
+  translate_z: 0.0
+  scale: 0.7
+  rotation_y: 0.0
+  rotation_pitch: 180.0
+  rotation_roll: 0.0
+
+# ── 剑 ──
+"#minecraft:swords": {}
+
+# ── 斧 ──
+"#minecraft:axes": {}
+
+# ── 锹 ──
+"#minecraft:shovels": {}
+
+# ── 剪刀 ──
+minecraft:shears: {}
+
+# ── 镐（手柄翘起） ──
+"#minecraft:pickaxes":
+  rotation_roll: 45.0
+
+# ── 锄（手柄翘起） ──
+"#minecraft:hoes":
+  rotation_roll: 45.0
+
+# ── FD 小刀 ──
+"#farmersdelight:tools/knives": {}

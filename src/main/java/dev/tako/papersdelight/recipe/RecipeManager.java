@@ -1,0 +1,146 @@
+package dev.tako.papersdelight.recipe;
+
+import dev.tako.papersdelight.jug.recipe.JugFluidEmptyingRecipe;
+import dev.tako.papersdelight.jug.recipe.JugFluidFillingRecipe;
+import dev.tako.papersdelight.jug.recipe.JugSoakingRecipe;
+import org.bukkit.inventory.ItemStack;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+
+public final class RecipeManager {
+
+    private static final AtomicLong EPOCH_COUNTER = new AtomicLong();
+
+    private static final AtomicReference<RecipeSnapshot> SNAPSHOT =
+            new AtomicReference<>(RecipeSnapshot.create(List.of()));
+    private static final AtomicReference<JugRecipes> JUG_RECIPES =
+            new AtomicReference<>(JugRecipes.empty());
+
+    public long snapshotEpoch() {
+        return SNAPSHOT.get().epoch();
+    }
+
+    public CookingRecipe findMatch(ItemStack[] inputs) {
+        RecipeSnapshot snapshot = SNAPSHOT.get();
+        CookingRecipe result = snapshot.trie().findMatch(inputs);
+        if (result != null) return result;
+
+        for (CookingRecipe recipe : snapshot.recipes()) {
+            if (matches(recipe, inputs)) return recipe;
+        }
+        return null;
+    }
+
+    public int count() {
+        return SNAPSHOT.get().recipes().size();
+    }
+
+    public List<CookingRecipe> recipes() {
+        return SNAPSHOT.get().recipes();
+    }
+
+    public RuntimeSnapshot captureRuntimeState() {
+
+        return new RuntimeSnapshot(SNAPSHOT.get(), JUG_RECIPES.get());
+    }
+
+    public void restoreRuntimeState(RuntimeSnapshot snapshot) {
+        RuntimeSnapshot state = Objects.requireNonNull(snapshot, "snapshot");
+        SNAPSHOT.set(state.snapshot);
+        JUG_RECIPES.set(state.jugRecipes);
+    }
+
+    public static final class RuntimeSnapshot {
+        private final RecipeSnapshot snapshot;
+        private final JugRecipes jugRecipes;
+
+        private RuntimeSnapshot(RecipeSnapshot snapshot, JugRecipes jugRecipes) {
+            this.snapshot = Objects.requireNonNull(snapshot, "snapshot");
+            this.jugRecipes = Objects.requireNonNull(jugRecipes, "jugRecipes");
+        }
+    }
+
+    void replaceSnapshot(List<CookingRecipe> recipes) {
+        SNAPSHOT.set(RecipeSnapshot.create(recipes));
+    }
+
+    public void publishRuntimeConfig(List<CookingRecipe> recipes) {
+        replaceSnapshot(recipes);
+    }
+
+    public void publishJugRecipes(
+            List<JugFluidFillingRecipe> filling,
+            List<JugFluidEmptyingRecipe> emptying,
+            List<JugSoakingRecipe> soaking
+    ) {
+        JUG_RECIPES.set(new JugRecipes(filling, emptying, soaking));
+    }
+
+    public JugRecipes jugRecipes() {
+        return JUG_RECIPES.get();
+    }
+
+    public record JugRecipes(
+            List<JugFluidFillingRecipe> filling,
+            List<JugFluidEmptyingRecipe> emptying,
+            List<JugSoakingRecipe> soaking
+    ) {
+        public JugRecipes {
+            filling = List.copyOf(filling == null ? List.of() : filling);
+            emptying = List.copyOf(emptying == null ? List.of() : emptying);
+            soaking = List.copyOf(soaking == null ? List.of() : soaking);
+        }
+
+        static JugRecipes empty() {
+            return new JugRecipes(List.of(), List.of(), List.of());
+        }
+    }
+
+    private boolean matches(CookingRecipe recipe, ItemStack[] inputs) {
+
+        int nonEmptyCount = 0;
+        for (ItemStack input : inputs) {
+            if (input != null && !input.isEmpty()) nonEmptyCount++;
+        }
+        if (nonEmptyCount != recipe.ingredients.size()) return false;
+
+        boolean[] used = new boolean[inputs.length];
+        for (IngredientDef ingredient : recipe.ingredients) {
+            boolean found = false;
+            for (int i = 0; i < inputs.length; i++) {
+                if (used[i] || inputs[i] == null || inputs[i].isEmpty()) continue;
+                if (matchesIngredient(inputs[i], ingredient)) {
+                    used[i] = true;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) return false;
+        }
+        return true;
+    }
+
+    public boolean matchesIngredient(ItemStack stack, IngredientDef def) {
+        return def != null && def.matcher().matches(stack, DefaultItemMatcherResolver.INSTANCE);
+    }
+
+    public static List<String> getTagItems(String tagName) {
+        return TagExpander.expand(Map.of(), tagName);
+    }
+
+    private record RecipeSnapshot(List<CookingRecipe> recipes,
+                                  RecipeTrie trie,
+                                  long epoch) {
+        private static RecipeSnapshot create(List<CookingRecipe> recipes) {
+            List<CookingRecipe> immutableRecipes = recipes == null ? List.of() : List.copyOf(recipes);
+            RecipeTrie trie = new RecipeTrie(new DefaultItemMatcherResolver());
+            for (CookingRecipe recipe : immutableRecipes) trie.insert(recipe);
+            return new RecipeSnapshot(immutableRecipes, trie, EPOCH_COUNTER.incrementAndGet());
+        }
+    }
+
+}

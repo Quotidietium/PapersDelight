@@ -1,0 +1,60 @@
+# ════════════════════════════════════════════════════════════════
+#  GUI 图标配置
+#  格式：ce:namespace:id = CraftEngine 物品; 无前缀 = 原版物品
+#  布局（slot 编号）硬编码在代码中，此文件仅定义图标外观
+# ════════════════════════════════════════════════════════════════
+
+jug:
+  buttons:
+    border: "ce:farmersdelight:gui_space"
+    empty: "ce:farmersdelight:gui_space_with_tooltip"
+    # 容量指示图标：堆叠数量 = 液罐容量 / 1000（桶）与 / 250（瓶），上限 99
+    capacity_bucket: "ce:farmersdelight:jug_capacity_bucket"
+    capacity_bottle: "ce:farmersdelight:jug_capacity_bottle"
+
+cooking_pot:
+  buttons:
+    # 边框/装饰
+    border: "ce:farmersdelight:gui_space"
+    # 配方书按钮（厨锅主界面 slot 9）
+    recipe_book: "knowledge_book"
+    # 热源指示器
+    heat_indicator:
+      unheated: "ce:farmersdelight:gui_space_with_tooltip"
+      heated: "ce:farmersdelight:heat_indicator"
+
+recipe_book:
+  expanded:
+    list:
+      buttons:
+        previous_page: "ce:farmersdelight:button_left"
+        next_page: "ce:farmersdelight:button_right"
+        page_info: "book"
+        filter_disabled: "ce:farmersdelight:cooking_pot_disabled"
+        filter_enabled: "ce:farmersdelight:cooking_pot_enabled"
+    detail:
+      buttons:
+        back_to_list: "ce:farmersdelight:button_left"
+        auto_fill: "ce:farmersdelight:button_cooking_pot"
+        cook_info: "ce:farmersdelight:gui_space_with_tooltip"
+
+  icons:
+    # 配方中 tag/anyOf 类型原料的占位图标
+    ingredient_any: "name_tag"
+    # 未知物品占位
+    unknown: "paper"
+
+# ════════════════════════════════════════════════════════════════
+#  配方浏览器图标
+# ════════════════════════════════════════════════════════════════
+recipe_browser:
+  buttons:
+    border: "ce:farmersdelight:gui_space"
+    border_tooltip: "ce:farmersdelight:gui_space_with_tooltip"
+    cooking_pot: "ce:farmersdelight:button_cooking_pot"
+    cutting_board: "ce:farmersdelight:diamond_knife"
+    misc: "ce:farmersdelight:button_info"
+    back: "ce:farmersdelight:button_back"
+    previous_page: "ce:farmersdelight:button_left"
+    next_page: "ce:farmersdelight:button_right"
+    page_info: "book"

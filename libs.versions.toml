@@ -1,0 +1,40 @@
+[versions]
+apiModule = "4.0.0"
+
+paperApi = "1.21-R0.1-SNAPSHOT"
+paperApiBridge = "1.21.4-R0.1-SNAPSHOT"
+mc1211 = "1.21.1-R0.1-SNAPSHOT"
+mc1214 = "1.21.4-R0.1-SNAPSHOT"
+mc12110 = "1.21.10-R0.1-SNAPSHOT"
+mc12111 = "1.21.11-R0.1-SNAPSHOT"
+paperRun = "1.21"
+foliaRun = "26.1.2"
+
+craftEngine = "26.8.1"
+placeholderApi = "2.11.6"
+gson = "2.11.0"
+jetbrainsAnnotations = "24.1.0"
+libuid = "1.0.0"
+ccScheduler = "2.0.4"
+
+shadow = "9.0.0"
+runPaper = "3.0.2"
+paperweight = "2.0.0-beta.21"
+
+[libraries]
+paperApi = { module = "io.papermc.paper:paper-api", version.ref = "paperApi" }
+paperApiBridge = { module = "io.papermc.paper:paper-api", version.ref = "paperApiBridge" }
+craftEngineCore = { module = "net.momirealms:craft-engine-core", version.ref = "craftEngine" }
+craftEngineBukkit = { module = "net.momirealms:craft-engine-bukkit", version.ref = "craftEngine" }
+craftEngineBukkitProxy = { module = "net.momirealms:craft-engine-bukkit-proxy", version.ref = "craftEngine" }
+placeholderApi = { module = "me.clip:placeholderapi", version.ref = "placeholderApi" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+jetbrainsAnnotations = { module = "org.jetbrains:annotations", version.ref = "jetbrainsAnnotations" }
+papersDelightApi = { module = "dev.tako:papersdelight-api", version.ref = "apiModule" }
+libuid = { module = "dev.tako:libuid", version.ref = "libuid" }
+ccScheduler = { module = "cn.chengzhimeow:CC-Scheduler", version.ref = "ccScheduler" }
+
+[plugins]
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
+runPaper = { id = "xyz.jpenilla.run-paper", version.ref = "runPaper" }
+paperweight = { id = "io.papermc.paperweight.userdev", version.ref = "paperweight" }

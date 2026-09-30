@@ -1,0 +1,520 @@
+# Paper's Delight configuration
+# Paper's Delight 配置文件
+
+# Config version (do not modify manually)
+# 配置版本号（请勿手动修改）
+config-version: 12
+
+# Language file name (in lang/ directory, without extension)
+# 语言文件名（位于 lang/ 目录下，不含后缀）
+lang: zh_cn
+
+# ════════════════════════════════════════════════════════════════
+#  Heat source list (shared by cooking pot / skillet)
+#  heat_source: whether it is a heat source, default true. Set to false to skip heating checks,
+#               but tray and other visual fields still take effect.
+#  tray: requires iron bars tray to heat (magma/campfire/fire and other non-stove heat sources)
+#  conductor: conductor, can transfer heat from below to the cooking pot above (e.g. hopper)
+#  ce_block_tag: match by CE block tag (all blocks in the tag are treated as this entry)
+#  热源列表（厨锅/煎锅共用）
+#  heat_source: 是否为热源，默认 true。设为 false 则加热检查跳过此条目，
+#              但 tray 等视觉字段仍生效。
+#  tray: 需要铁栅托盘才能加热（岩浆/营火/火焰等非炉灶热源）
+#  conductor: 传导器，可将下方热源传导到上方厨锅（如漏斗）
+#  ce_block_tag: 通过 CE 方块 tag 匹配（tag 中的所有方块均视为该条目）
+# ════════════════════════════════════════════════════════════════
+heat_sources:
+  # Vanilla blocks, match by material + states
+  # 原版方块，匹配 material + states
+  - material: MAGMA_BLOCK
+  - material: LAVA
+    tray: true
+  - material: FIRE
+    tray: true
+  - material: SOUL_FIRE
+    tray: true
+  - material: LAVA_CAULDRON
+  - material: CAMPFIRE
+    heat_source: true
+    tray: true
+    states:
+      lit: 'true'
+  - material: CAMPFIRE
+    heat_source: false
+    tray: true
+    states:
+      lit: 'false'
+  - material: SOUL_CAMPFIRE
+    heat_source: true
+    tray: true
+    states:
+      lit: 'true'
+  - material: SOUL_CAMPFIRE
+    heat_source: false
+    tray: true
+    states:
+      lit: 'false'
+  # CE custom blocks (match by block tag)
+  # CE 自定义方块（通过方块 tag 匹配）
+  - ce_block_tag: farmersdelight:heat_sources
+  # CE custom blocks (heat sources requiring tray tag)
+  # CE 自定义方块（需要托盘的热源 tag）
+  - ce_block_tag: farmersdelight:heat_sources_with_tray
+    tray: true
+  # Hopper heat conductor
+  # 漏斗导热
+  - material: HOPPER
+    conductor: true
+
+# ════════════════════════════════════════════════════════════════
+#  Cooking Pot
+#  厨锅
+# ════════════════════════════════════════════════════════════════
+cooking_pot:
+  # Show the recipe book button in the cooking pot menu
+  # 是否在厨锅菜单中显示配方书按钮
+  recipe_book: true
+
+  # Particles
+  # 粒子
+  particles:
+    # Particle spawn interval
+    # 粒子产生的时间间隔
+    interval_ticks: 8
+    # Particle visibility range in blocks
+    # 粒子在多少格范围内可见
+    view_distance_blocks: 24.0
+
+# ════════════════════════════════════════════════════════════════
+#  Cutting Board
+#  砧板
+# ════════════════════════════════════════════════════════════════
+cutting_board:
+  # Fallback tools, do not change unless necessary
+  # 回退工具，建议不要改动
+  default_tools: "#farmersdelight:tools/knives"
+
+  # Fortune enchantment bonus for chance drops (probability increase per level, 0.1 = 10%, set to 0 to disable)
+  # 时运附魔对概率产出的加成（每级增加的概率，0.1 = 10%，设为 0 禁用）
+  fortune_bonus: 0.1
+
+  # Dispenser interaction with cutting board
+  # 发射器与砧板交互
+  dispenser_cutting: true
+
+  # Hopper interaction with cutting board (insert/extract items, does not affect tools)
+  # 漏斗与砧板交互（放入/吸出物品，不影响工具）
+  hopper_interaction: true
+
+  # ── Sounds ──
+  # ── 音效 ──
+  sounds:
+    # Place item on cutting board
+    # 放置物品到砧板
+    place_item:
+      sound: farmersdelight:block.cutting_board.place_item
+      volume: 1.0
+      pitch: 0.8
+    # Remove item from cutting board
+    # 从砧板取回物品
+    remove_item:
+      sound: farmersdelight:block.cutting_board.remove_item
+      volume: 0.25
+      pitch: 0.5
+    # Insert tool into cutting board
+    # 插入工具到砧板
+    carve_tool:
+      sound: farmersdelight:block.cutting_board.carve_tool
+      volume: 1.0
+      pitch: 0.8
+    # Fallback sound
+    # 回退音效
+    fallback:
+      sound: minecraft:block.wood.break
+      volume: 1.0
+      pitch: 0.8
+
+  # ── Tool-specific sounds ──
+  # ── 工具指定音效 ──
+  # Key is item ID (minecraft:shears) or quoted tag ("#minecraft:axes")
+  # Simple format: value is a sound key; precise format: value is {sound, volume, pitch}
+  # 键为物品 ID（minecraft:shears）或带引号的标签（"#minecraft:axes"）
+  # 简单格式：值直接写音效键；精准格式：值写 {sound, volume, pitch}
+  tool_sounds:
+    # Shears
+    # 剪刀
+    minecraft:shears:
+      sound: minecraft:entity.sheep.shear
+      volume: 1.0
+      pitch: 1.0
+    # Knife
+    # 刀
+    knife:
+      sound: farmersdelight:block.cutting_board.knife_cut
+      volume: 0.8
+      pitch: 1.0
+
+  # ── Item display parameters ──
+  # ── 物品展示参数 ──
+  display:
+    translate_x: 0.0
+    translate_y: 0.11
+    translate_z: 0.0
+    scale: 0.7
+    # Y offset per stacked item
+    # 多物品堆叠时 Y 轴偏移
+    stack_y_offset: 0.035
+    # XZ offset per stacked item
+    # 多物品堆叠时 XZ 轴偏移
+    stack_xz_offset: 0.075
+    rotation_y: 0.0
+    rotation_pitch: 90.0
+    rotation_roll: 0.0
+
+  # ── Block display parameters (overrides display when item is a block) ──
+  # ── 方块展示参数（物品是方块时覆写display） ──
+  display_block:
+    translate_x: 0.0
+    translate_y: 0.3
+    translate_z: 0.0
+    scale: 0.4
+    stack_y_offset: 0.03
+    stack_xz_offset: 0.08
+    rotation_y: 0.0
+    rotation_pitch: 0.0
+    rotation_roll: 0.0
+
+  # List of blocks that should use block display instead of item display
+  # 需用方块展示替代物品展示的方块列表
+  block_display_overrides:
+    - farmersdelight:stove
+    - farmersdelight:cooking_pot
+    - farmersdelight:cutting_board
+    - farmersdelight:skillet
+
+  # Force blocks to render as 2D item display
+  # 强制方块以 2D 物品形式展示
+  item_display_overrides:
+    - "#minecraft:hanging_signs"
+    - "#minecraft:signs"
+    - "#minecraft:beds"
+    - "#minecraft:small_flowers"
+    - "#minecraft:doors"
+    - "#minecraft:tall_flowers"
+    - "#minecraft:banners"
+    - "#minecraft:rails"
+    - minecraft:sculk_vein
+    - minecraft:weeping_vines
+    - minecraft:oak_sapling
+    - minecraft:redstone_torch
+    - minecraft:hopper
+    - minecraft:large_fern
+    - minecraft:end_rod
+    - minecraft:cherry_sapling
+    - minecraft:dead_bush
+    - minecraft:campfire
+    - minecraft:firefly_bush
+    - minecraft:flowering_azalea
+    - minecraft:cauldron
+    - minecraft:crimson_fungus
+    - minecraft:lightning_rod
+    - minecraft:sea_pickle
+    - minecraft:ladder
+    - minecraft:hanging_roots
+    - minecraft:glow_lichen
+    - minecraft:birch_sapling
+    - minecraft:nether_sprouts
+    - minecraft:sugar_cane
+    - minecraft:lantern
+    - minecraft:azalea
+    - minecraft:mangrove_propagule
+    - minecraft:tall_grass
+    - minecraft:spruce_sapling
+    - minecraft:vine
+    - minecraft:pink_petals
+    - minecraft:brewing_stand
+    - minecraft:soul_campfire
+    - minecraft:cobweb
+    - minecraft:warped_fungus
+    - minecraft:jungle_sapling
+    - minecraft:acacia_sapling
+    - minecraft:end_portal_frame
+    - minecraft:twisting_vines
+    - minecraft:kelp
+    - minecraft:pale_oak_sapling
+    - minecraft:flower_pot
+    - minecraft:bamboo_sapling
+    - minecraft:conduit
+    - minecraft:soul_torch
+    - minecraft:crimson_roots
+    - minecraft:warped_roots
+    - minecraft:cake
+    - minecraft:short_grass
+    - minecraft:torch
+    - minecraft:scaffolding
+    - minecraft:chain
+    - minecraft:tripwire_hook
+    - minecraft:fern
+    - minecraft:dark_oak_sapling
+    - minecraft:lily_pad
+    - minecraft:nether_wart
+    - minecraft:soul_lantern
+
+# ════════════════════════════════════════════════════════════════
+#  Skillet
+#  煎锅
+# ════════════════════════════════════════════════════════════════
+skillet:
+  # ── Item display parameters ──
+  # ── 物品展示参数 ──
+  display:
+    scale: 0.5
+    rotation_pitch: 90.0
+    translate_y: 0.1
+    stack_y_offset: 0.03
+    stack_xz_offset: 0.06
+
+  # ── Cooking parameters ──
+  # ── 烹饪参数 ──
+  cooking:
+    # Default cook time (ticks, 20 ticks = 1 second)
+    # 默认烹饪时长（tick，20 tick = 1 秒）
+    default_cook_time: 600
+
+  particles:
+    interval_ticks: 8
+    view_distance_blocks: 24.0
+
+  # ── Fire aspect particle parameters ──
+  # ── 火焰附加粒子参数 ──
+  fire_aspect_particle:
+    # XZ spread range
+    # XZ 扩散范围
+    xz_spread: 0.6
+    # Y velocity base
+    # Y 轴初速度基准
+    velocity_y_base: 0.3
+    # Y velocity random increment
+    # Y 轴初速度随机增量
+    velocity_y_extra: 0.8
+    # XZ velocity
+    # XZ 轴速度
+    velocity_xz: 0.3
+    # Particle origin offset
+    # 粒子发射原点偏移
+    origin_x: 0.5
+    origin_y: 0.3
+    origin_z: 0.5
+
+  # ── Sounds ──
+  # ── 音效 ──
+  sounds:
+    add_food:
+      # Add food (heat source below)
+      # 放入食物（下方为有效热源）
+      sound: farmersdelight:block.skillet.add_food
+      volume: 0.8
+      pitch: 1.0
+    add_food_cold:
+      # Add food (no heat source below)
+      # 放入食物（下方不是有效热源）
+      sound: minecraft:block.lantern.place
+      volume: 0.7
+      pitch: 1.0
+    sizzle:
+      # Cooking sizzle sound
+      # 烹饪滋滋声
+      sound: farmersdelight:block.skillet.sizzle
+      volume: 0.4
+      pitch_min: 0.9
+      pitch_max: 1.1
+
+# ════════════════════════════════════════════════════════════════
+#  Stove
+#  炉灶
+# ════════════════════════════════════════════════════════════════
+stove:
+  # ── Item display parameters ──
+  # ── 物品展示参数 ──
+  display:
+    # Item height above stove surface
+    # 物品离灶面高度
+    translate_y: 1.01
+    scale: 0.375
+    # Slot 1 X offset
+    # 第一个槽位的 X 偏移
+    slot_1_x: 0.3
+    # Slot 1 Z offset
+    # 第一个槽位的 Z 偏移
+    slot_1_z: 0.2
+    # Column spacing between slots
+    # 槽位列间距
+    col_spacing: 0.3
+    # Row spacing between slots
+    # 槽位行间距
+    row_spacing: 0.4
+    rotation_pitch: 90.0
+
+  # ── Cooking parameters ──
+  # ── 烹饪参数 ──
+  cooking:
+    # Default cook time (ticks)
+    # 默认烹饪时长（tick）
+    default_cook_time: 600
+
+  particles:
+    interval_ticks: 8
+    view_distance_blocks: 24.0
+    item_smoke_chance: 0.2
+    item_smoke_count: 1
+
+  # ── Sounds ──
+  # ── 音效 ──
+  sounds:
+    place_food:
+      # Place food on stove
+      # 放置食物到炉灶
+      sound: minecraft:block.lantern.place
+      volume: 0.5
+      pitch: 1.0
+
+# ════════════════════════════════════════════════════════════════
+#  Pet Food
+#  宠物食物
+# ════════════════════════════════════════════════════════════════
+pet_food:
+  dog_food:
+    # CE item IDs recognized as dog food
+    # 识别为狗粮的 CE 物品 ID 列表
+    items:
+      - "farmersdelight:dog_food"
+  horse_feed:
+    # CE item IDs recognized as horse feed
+    # 识别为马食的 CE 物品 ID 列表
+    items:
+      - "farmersdelight:horse_feed"
+
+# ════════════════════════════════════════════════════════════════
+#  Recipe Book
+#  配方书
+# ════════════════════════════════════════════════════════════════
+recipe_book:
+  # Tag/multi-ingredient icon cycle interval (ticks, 20 ticks = 1 second)
+  # Tag/多选原料图标轮换间隔（tick，20 tick = 1 秒）
+  tag_cycle_interval_ticks: 20
+
+# ════════════════════════════════════════════════════════════════
+#  Particle/sound density throttling (prevents excessive packets when many blocks are clustered)
+#  粒子/音效密度节流（防止大量方块集中时发包过多）
+# ════════════════════════════════════════════════════════════════
+# 容器 tick 批处理间隔（1 = 每 tick 一次，与旧行为完全一致；4 = 与 Farmer's Delight 对齐的批处理）
+# 容器逻辑仍然按真实经过的 tick 数逐次补跑，只有「快照/回写/粒子/GUI 刷新」等重活被合并，因此进度不会变慢。
+# Container tick batch interval (1 = per tick, identical to the legacy behaviour; 4 = FD-style batching).
+# Container logic still replays every elapsed tick, only the heavy work (snapshot/write-back/particles/GUI) is merged.
+container:
+  tick_interval_ticks: 1
+
+particle_throttle:
+  # Start reducing particle rate when stoves in a chunk exceed this count
+  # 同一区块内炉灶超过此数量时开始降低粒子发送频率
+  stove_threshold: 8
+  # Minimum particle send rate after throttling (0.0~1.0, e.g. 0.5 = keep at least 50%)
+  # 炉灶节流后最低发送比率（0.0~1.0，如 0.5 表示最低保留 50%）
+  stove_max_rate: 0.1
+  # Start reducing particle rate when cooking pots in a chunk exceed this count
+  # 同一区块内厨锅超过此数量时开始降低粒子发送频率
+  cooking_pot_threshold: 4
+  # Minimum cooking pot particle send rate after throttling
+  # 厨锅节流后最低发送比率
+  cooking_pot_max_rate: 0.05
+  # Start reducing ambient sound rate when sound-emitting blocks in a chunk exceed this count
+  # 同一区块内环境音方块超过此数量时开始降低音效播放频率
+  ambient_sound_threshold: 4
+  # Minimum ambient sound play rate after throttling
+  # 环境音节流后最低播放比率
+  ambient_sound_max_rate: 0.001
+
+# ════════════════════════════════════════════════════════════════
+#  Custom Status Effects
+#  自定义状态效果
+# ════════════════════════════════════════════════════════════════
+nourishment_effect:
+  enable: true
+  # Allow eating even when the hunger bar is full (mimics Farmer's Delight)
+  # Implemented by briefly showing 19/20 hunger while holding food, restored right after eating
+  # 允许饱食度满时继续进食（仿农夫乐事）
+  # 实现方式：手持食物时短暂显示 19/20 饥饿值，进食结束后立即补回
+  always_eat: true
+  bossbar:
+    # Color: BLUE, GREEN, PINK, PURPLE, RED, WHITE, YELLOW
+    # 颜色: BLUE, GREEN, PINK, PURPLE, RED, WHITE, YELLOW
+    color: YELLOW
+    # Style: SOLID, SEGMENTED_6, SEGMENTED_10, SEGMENTED_12, SEGMENTED_20
+    # 样式: SOLID, SEGMENTED_6, SEGMENTED_10, SEGMENTED_12, SEGMENTED_20
+    style: SEGMENTED_20
+
+# ════════════════════════════════════════════════════════════════
+#  Statistics & PlaceholderAPI
+#  统计与 PlaceholderAPI
+#  Data stored in plugins/PapersDelight/stats.db (SQLite)
+#  数据存放于 plugins/PapersDelight/stats.db（SQLite）
+#
+#  Mechanic counters (append _of_<name> for specific player):
+#  机制计数（指定玩家用 _of_<名字> 后缀）：
+#    %papersdelight_cooking_pot_cook%              total cooking pot output count
+#    %papersdelight_cooking_pot_cook%              厨锅取出成品总次数
+#    %papersdelight_skillet_cook%                  total skillet use count
+#    %papersdelight_skillet_cook%                  煎锅使用总次数
+#    %papersdelight_cutting_board_cut%             total cutting board cut count
+#    %papersdelight_cutting_board_cut%             砧板切制总次数
+#    %papersdelight_cooking_pot_cook_<ns:id>%      specific food
+#    %papersdelight_cooking_pot_cook_<ns:id>%      指定食物
+#    %papersdelight_cutting_board_cut_of_Tako%     specific player
+#    %papersdelight_cutting_board_cut_of_Tako%     指定玩家
+#
+#  Effect status (prefix <name>_ for specific player, xxx can be comfort/nourishment/garlic):
+#  效果状态（指定玩家用 <名字>_ 前缀，xxx 可填 comfort/nourishment/garlic）：
+#    %papersdelight_effect_xxx%                            true / false
+#    %papersdelight_effect_xxx_time_remaining%             remaining seconds
+#    %papersdelight_effect_xxx_time_remaining%             剩余秒数
+#    %papersdelight_effect_xxx_time_remaining_formatted%   M:SS
+#    %papersdelight_effect_xxx_times%                      times applied
+#    %papersdelight_effect_xxx_times%                      被施加次数
+#    %papersdelight_Tako_effect_comfort%                   specific player
+#    %papersdelight_Tako_effect_comfort%                   指定玩家
+# ════════════════════════════════════════════════════════════════
+stats:
+  enable: true
+  # Flush interval in seconds. Server crash loses at most one cycle of increments. Minimum 5
+  # 计数落盘间隔（秒）。崩服最多丢一个周期内的增量，最小值 5
+  flush_interval: 30
+  # Persist custom effect remaining duration across logouts. Stores remaining ticks,
+  # countdown freezes while offline, resumes from the logout moment on rejoin
+  # 自定义效果剩余时长跨下线保留。存的是剩余 tick，
+  # 离线期间倒计时冻结，重连后从下线那一刻继续
+  persist_effects: true
+  # [Shutdown budget] Max wait time (ms) for in-flight async stats/effect writes to flush.
+  # Shutdown waits for these writes before closing the database to avoid losing the last batch.
+  # 【关服预算】等待「玩家退出的异步统计/效果写入」落盘的上限（毫秒）。
+  # 关服会先等这些在途写入完成再关闭数据库，避免最后一批数据丢失。
+  #
+  # This is the total budget for the entire shutdown/reload flow, not per-stage:
+  # save online player effects → wait in-flight writes → final flush → close connection,
+  # all stages share the same deadline, so shutdown is delayed by at most this many ms.
+  # Times out with a warning and continues shutdown. Minimum 200, default 5000
+  # 这是关服/reload 全流程的总预算，不是每阶段各等一次：
+  # 保存在线玩家效果 → 等在途写入 → 最后一次落盘 → 关闭连接，
+  # 全部阶段共享同一个 deadline，所以关服最多被拖慢这个毫秒数。
+  # 超时只记 warning 并继续关服。最小值 200，默认 5000
+  #
+  # Note: this value does not affect main-thread stalls during runtime, see io_wait_millis below
+  # 注意：这个值不影响运行期的主线程停顿，见下面的 io_wait_millis
+  shutdown_wait_millis: 5000
+  # [Runtime budget] Max lock-wait time (ms) per DB operation, independent of shutdown budget.
+  # PAPI queries on the main thread that exceed this wait time will abort and log,
+  # won't cache wrong values, next query retries. Clamped to 20~500, default 100
+  # 【运行期预算】单次数据库操作的等锁上限（毫秒），与关服预算完全独立。
+  # 主线程上的 PAPI 查询等锁超过这个时间就放弃本次查询并记日志，
+  # 不会缓存错误值，下次查询会重试。取值被限制在 20~500 之间，默认 100
+  io_wait_millis: 100
+

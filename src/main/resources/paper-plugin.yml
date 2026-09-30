@@ -1,0 +1,42 @@
+name: PapersDelight
+version: '${version}'
+description: PapersDelight
+authors:
+  - Shimamura Tako
+  - Mr Dg32z_
+  - gukuan
+  - Cold Leaves
+contributors:
+  - yuuka0
+website: https://github.com/Paperized-Modding/PapersDelight
+
+main: dev.tako.papersdelight.client.PapersDelightClient
+bootstrapper: dev.tako.papersdelight.client.PapersDelightBootstrap
+api-version: '1.21'
+folia-supported: true
+load: STARTUP
+
+dependencies:
+  server:
+    CraftEngine:
+      load: BEFORE
+      required: true
+      join-classpath: true
+    PlaceholderAPI:
+      load: BEFORE
+      required: false
+      join-classpath: true
+    Libuid:
+      load: BEFORE
+      required: false
+      join-classpath: true
+permissions:
+  papersdelight.reload:
+    description: Allows reloading PapersDelight configs and recipes.
+    default: op
+  papersdelight.dev:
+    description: Allows development test commands such as effect and inspect.
+    default: op
+  papersdelight.recipe:
+    description: Allows opening the recipe browser via /fd or /pd recipe.
+    default: op
