@@ -110,18 +110,6 @@ Purchase the **Premium Edition** of Paper's Delight to unlock premium-only featu
 
 **Add QQ 1612948730 (recommended)** or purchase it for ￥30 via the [Afdian page](https://afdian.com/item/64f4bc007ad111f1b2b75254001e7c00). The platform charges the author a 6% service fee; the purchase price remains unchanged.
 
-## 🛠 Building from source
-
-Requirements: **JDK 21**.
-
-```powershell
-.\gradlew.bat build        # produces build/libs/PapersDelight-<version>-CE.jar
-.\gradlew.bat runServer    # local Paper test server (put the CraftEngine jar into run/plugins)
-.\gradlew.bat runFolia     # local Folia test server (put the CraftEngine jar into run-folia/plugins)
-```
-
-The build verifies the produced jar (required entries, no cloud-loader entry, no bundled golden pack) before it is considered successful.
-
 ## 🔌 Developer API
 
 PapersDelight exposes a stable API for addon plugins: menu contracts, recipe types, item matchers, damage-type contracts and capability gates. It is published to our Maven repository and consumed as `compileOnly` — the classes are provided by the PapersDelight plugin at runtime.
@@ -172,29 +160,6 @@ dependencies {
     <scope>provided</scope>
 </dependency>
 ```
-
-Declare PapersDelight as a dependency in your `paper-plugin.yml`:
-
-```yaml
-dependencies:
-  server:
-    PapersDelight:
-      load: BEFORE
-      required: true
-      join-classpath: true
-```
-
-Startup compatibility check:
-
-```java
-if (!PapersDelightApi.isCompatible(PapersDelightApi.VERSION)) {
-    getLogger().warning("PapersDelight API version mismatch, disabling addon.");
-    getServer().getPluginManager().disablePlugin(this);
-    return;
-}
-```
-
-📚 **API repository and example:** <https://github.com/Paperized-Modding/PapersDelight-API>
 
 ## 🙏 Credits
 

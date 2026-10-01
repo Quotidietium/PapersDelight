@@ -110,18 +110,6 @@ container:
 
 **添加 QQ 1612948730（推荐）** 或从[爱发电页面](https://afdian.com/item/64f4bc007ad111f1b2b75254001e7c00)（平台向作者收取 6% 服务费，购买价不变）以 ￥30 的价格购买。
 
-## 🛠 从源码构建
-
-需要 **JDK 21**。
-
-```powershell
-.\gradlew.bat build        # 产物：build/libs/PapersDelight-<版本>-CE.jar
-.\gradlew.bat runServer    # 本地 Paper 测试服（把 CraftEngine jar 放进 run/plugins）
-.\gradlew.bat runFolia     # 本地 Folia 测试服（把 CraftEngine jar 放进 run-folia/plugins）
-```
-
-构建过程会校验产物 jar（必需条目、不含云载入口、不打包黄金包），校验通过才算构建成功。
-
 ## 🔌 开发者 API
 
 PapersDelight 为附属插件提供稳定 API：菜单契约、配方类型注册、物品匹配、伤害类型契约与能力门。API 已发布到我们的 Maven 仓库，使用 `compileOnly` 引入——运行时由 PapersDelight 插件提供这些类。
@@ -172,29 +160,6 @@ dependencies {
     <scope>provided</scope>
 </dependency>
 ```
-
-在 `paper-plugin.yml` 里声明对 PapersDelight 的依赖：
-
-```yaml
-dependencies:
-  server:
-    PapersDelight:
-      load: BEFORE
-      required: true
-      join-classpath: true
-```
-
-启动时做兼容性检查：
-
-```java
-if (!PapersDelightApi.isCompatible(PapersDelightApi.VERSION)) {
-    getLogger().warning("PapersDelight API 版本不匹配，禁用本附属插件。");
-    getServer().getPluginManager().disablePlugin(this);
-    return;
-}
-```
-
-📚 **API 仓库与示例：** <https://github.com/Paperized-Modding/PapersDelight-API>
 
 ## 🙏 致谢
 
