@@ -31,6 +31,14 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class CraftEngineUtil {
     private static final Map<String, Material> BASE_MATERIAL_CACHE = new ConcurrentHashMap<>();
 
+    // materialFromId 是纯函数（输入 id 字符串 → Material 枚举，注册表运行期不可变），
+    // 因此缓存永不失效；Optional.empty 作为未命中哨兵（CHM 不允许 null 值）。
+    // 上限防御：常规输入来自配置文件 id（数量有限），超限时退化为直算不缓存。
+    private static final Map<String, java.util.Optional<Material>> MATERIAL_CACHE = new ConcurrentHashMap<>();
+    private static final int MATERIAL_CACHE_MAX = 8192;
+    private static final java.util.concurrent.atomic.AtomicInteger MATERIAL_CACHE_COUNT =
+            new java.util.concurrent.atomic.AtomicInteger();
+
     private CraftEngineUtil() {}
 
     public static boolean isCraftEngineInstalled(Plugin plugin) {
@@ -346,6 +354,18 @@ public final class CraftEngineUtil {
 
     public static Material materialFromId(String id) {
         if (id == null || id.isEmpty()) return null;
+        java.util.Optional<Material> cached = MATERIAL_CACHE.get(id);
+        if (cached != null) return cached.orElse(null);
+        Material material = resolveMaterial(id);
+        if (MATERIAL_CACHE_COUNT.get() < MATERIAL_CACHE_MAX) {
+            if (MATERIAL_CACHE.putIfAbsent(id, java.util.Optional.ofNullable(material)) == null) {
+                MATERIAL_CACHE_COUNT.incrementAndGet();
+            }
+        }
+        return material;
+    }
+
+    private static Material resolveMaterial(String id) {
         String name = id.toLowerCase(Locale.ROOT).startsWith("minecraft:")
                 ? id.substring("minecraft:".length())
                 : id;

@@ -51,3 +51,6 @@ dist/
 benchmark/classes/
 benchmark/lib/
 benchmark/results/
+
+# stray cache from mis-quoted GRADLE_USER_HOME (use F:/Temp/.gradle)
+TEMP.gradle/

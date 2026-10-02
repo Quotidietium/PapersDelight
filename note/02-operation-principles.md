@@ -165,6 +165,8 @@ flowchart LR
 | 发布 | `state` | `RuntimeState` | `{recipes: List, trie: RecipeTrie, epoch: n}` 原子替换 | `recipe/RecipeManager.java` |
 | 查询 | `match` | `CookingRecipe` | Trie DFS 命中；miss 时线性 `matches()` 贪心兜底 | `recipe/RecipeTrie.java:64-80` |
 
+匹配原语的标识解析全部走进程级缓存：matcher 的 item-id 项最终落到 `CraftEngineUtil.materialFromId`（R6 起纯函数缓存，命中 ~2ns，替代每次 toLowerCase/toUpperCase 分配 + valueOf，未知名原本还要走 IllegalArgumentException 异常路径）；`advtag:` 项的 tagId→CE Key 复用 `CE_KEYS`（R6 起 matchesAdvancedTag 亦接入），免去每次 Key.of 解析分配。
+
 **代次令牌（ParserGeneration）**：parser 一经注册进 CE PackManager 就**永不注销**（`unregisterAll` 仅清配置）。重载时 `ParserGeneration`（公平读写锁）换代，旧代回调在 `GenerationAwareIdSectionConfigParser` 的每个入口静默失效——避免了「注销 CE 内部注册表项」这一危险操作。
 
 ### 2.3 高级标签两阶段提交

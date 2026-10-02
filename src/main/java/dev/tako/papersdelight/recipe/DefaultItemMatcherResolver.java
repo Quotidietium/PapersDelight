@@ -51,7 +51,7 @@ public final class DefaultItemMatcherResolver implements ItemMatcherResolver<Ite
         if (itemId == null) return false;
 
         try {
-            return advancedTags.get().containsItem(Key.of(tagId), itemId);
+            return advancedTags.get().containsItem(ceKey(tagId), itemId);
         } catch (RuntimeException ignored) {
             return false;
         }
@@ -78,5 +78,10 @@ public final class DefaultItemMatcherResolver implements ItemMatcherResolver<Ite
 
     private static Key ceKey(String tagId) {
         return CE_KEYS.computeIfAbsent(tagId, Key::of);
+    }
+
+    /** 仅供基准测试：度量 ceKey 缓存命中成本（与 Key.of 直算对比）。无服务器环境安全。 */
+    static Key cachedKeyForBenchmark(String tagId) {
+        return ceKey(tagId);
     }
 }

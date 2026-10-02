@@ -245,7 +245,9 @@ public final class JugManager implements Listener, JugGate.Bridge {
             refreshInputSlot(location, inventory, controller);
             return;
         }
-        ItemStack shown = copyMenuStack(inventory.getItem(JugLayout.INPUT));
+        // 常见路径（玩家未编辑槽位）只做一次 equals 比较；controller.input 内部 normalize
+        // 自带克隆并与库存镜像解耦，因此无需先 copyMenuStack（每 tick 省 1 次 ItemStack.clone）。
+        ItemStack shown = inventory.getItem(JugLayout.INPUT);
         if (!itemsEqual(shown, controller.input())) controller.input(shown);
     }
 

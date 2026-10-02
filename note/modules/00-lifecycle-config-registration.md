@@ -709,43 +709,44 @@ flowchart TD
 | loadAll | `@Override public void loadAll()` | L58 | 同上 |
 | clearConfigs | `@Override public void clearConfigs()` | L63 | 无条件清 configStorage/pendingConfigSections（基类字段），checkDuplicated 时清 id 路径映射 |
 
-### 2.29 CraftEngineUtil（`src/main/java/dev/tako/papersdelight/ce/CraftEngineUtil.java`，367 行）
+### 2.29 CraftEngineUtil（`src/main/java/dev/tako/papersdelight/ce/CraftEngineUtil.java`，387 行）
 **职责**：CraftEngine API 的静态工具箱：CE 安装/就绪探测、自定义方块状态读写、物品 id 匹配与构建、合成余料解析，全部方法 try-catch 包裹容错。
 **继承/接口**：final class，私有构造。
-**关键字段**：`BASE_MATERIAL_CACHE`（static final ConcurrentHashMap&lt;String, Material&gt;，CE 方块→原版材质缓存）。
+**关键字段**：`BASE_MATERIAL_CACHE`（static final ConcurrentHashMap&lt;String, Material&gt;，CE 方块→原版材质缓存）；`MATERIAL_CACHE`（static final ConcurrentHashMap&lt;String, Optional&lt;Material&gt;&gt;，id→原版材质解析缓存，R6 引入；纯函数缓存永不失效，`Optional.empty` 作未命中哨兵，`MATERIAL_CACHE_MAX`=8192 上限 + `MATERIAL_CACHE_COUNT` 近似计数，超限退化为直算不缓存）。
 **方法清单表**：
 | 方法 | 签名 | 行号 | 行为说明 |
 | --- | --- | --- | --- |
-| 构造器 | `private CraftEngineUtil()` | L34 | 禁实例化 |
-| isCraftEngineInstalled | `static boolean isCraftEngineInstalled(Plugin)` | L36 | PluginManager 查 CraftEngine 是否存在 |
-| isCraftEngineEnabled | `static boolean isCraftEngineEnabled(Plugin)` | L41 | 存在且 isEnabled |
-| getCraftEngineInstanceIfReady | `static CraftEngine getCraftEngineInstanceIfReady()` | L47 | CraftEngine.instance() 异常吞掉返回 null |
-| getPackManagerIfReady | `static PackManager getPackManagerIfReady(Plugin)` | L55 | 未装返回 null；instance 就绪才返回 packManager |
-| getCustomBlockId | `static String getCustomBlockId(Block)` | L61 | 状态 owner 的 id 字符串 |
-| getCustomBlockState | `static ImmutableBlockState getCustomBlockState(Block)` | L68 | 优先 BukkitWorldManager 已加载世界快速路径，回退 CraftEngineBlocks.getCustomBlockState；异常/空状态返回 null |
-| getLoadedChunk | `static CEChunk getLoadedChunk(World, int, int)` | L91 | 已加载区块获取（未加载返回 null） |
-| getLoadedWorld（公开） | `static CEWorld getLoadedWorld(World)` | L96 | 经 BukkitWorldManager 取已加载 CE 世界 |
-| getLoadedWorld（私有） | `private static CEWorld getLoadedWorld(BukkitWorldManager, World)` | L107 | 内部实现：按 UID 取 BukkitWorld→storageWorld 并校验 UUID 一致 |
-| isCustomBlock | `static boolean isCustomBlock(Block, String id)` | L117 | id 与方块自定义 id 相等 |
-| getBlockEntityId | `static String getBlockEntityId(BlockEntity)` | L122 | 方块实体状态 owner id |
-| isBlockEntity | `static boolean isBlockEntity(BlockEntity, String id)` | L129 | id 与方块实体 id 相等 |
-| matchesAnyBlock | `static boolean matchesAnyBlock(Block, Collection<String>)` | L134 | 方块 id 命中集合任一 |
-| matchesAnyBlockEntity | `static boolean matchesAnyBlockEntity(BlockEntity, Collection<String>)` | L139 | 方块实体 id 命中集合任一 |
-| isValidBlockId | `static boolean isValidBlockId(String ceBlockId)` | L145 | Key.of+byId 命中；CE 方块表为空（未加载）或解析异常时宽容返回 true |
-| getBaseMaterial | `static Material getBaseMaterial(String ceBlockId)` | L161 | 查缓存→CraftEngineBlocks.byId→defaultState 材质并回填缓存 |
-| placeCustomBlock | `static boolean placeCustomBlock(Block, String id)` | L176 | CraftEngineBlocks.place 按 Key 放置 |
-| advanceCustomBlockIntProperty | `static boolean advanceCustomBlockIntProperty(Block, String, int maxValue)` | L182 | 读当前 int 属性，-1 或越界 false，否则 set 为 +1 |
-| getCustomBlockIntProperty | `static int getCustomBlockIntProperty(Block, String, int fallback)` | L188 | 字符串属性 parseInt |
-| getCustomBlockProperty | `static String getCustomBlockProperty(Block, String)` | L194 | 读任意属性值字符串 |
-| setCustomBlockProperty | `static boolean setCustomBlockProperty(Block, String, String)` | L208 | 按 valueByName 找值并 with+place 更新状态 |
-| isItem | `static boolean isItem(ItemStack, String id)` | L229 | `#` 前缀：CE 物品标签或原版 Tag；CE 自定义物品比 id/value；否则原版 Material 匹配 |
-| getCustomItemId | `static String getCustomItemId(ItemStack)` | L262 | 非自定义或空返回 null |
-| matchesAnyItem | `static boolean matchesAnyItem(ItemStack, Collection<String>)` | L270 | 逐 id isItem 短路 |
-| getItemIdentifier | `static String getItemIdentifier(ItemStack)` | L278 | CE id 优先否则原版 key |
-| getCraftRemainderId | `static String getCraftRemainderId(String itemId)` | L285 | 非 minecraft 命名空间先查 CE craftRemainder（含 Item.byId 校验与 count>0）；再回退原版 craftingRemainingItem |
-| createItem | `static ItemStack createItem(String id, int amount)` | L327 | amount 钳 ≥1；带命名空间且非 minecraft 走 CE byId buildBukkitItem；否则原版材质构造 |
-| materialFromId | `static Material materialFromId(String id)` | L347 | 剥 minecraft: 前缀后 valueOf，含冒号返回 null |
-| parseInt | `private static int parseInt(String, int fallback)` | L360 | NumberFormatException 回退 |
+| 构造器 | `private CraftEngineUtil()` L42 禁实例化 |
+| isCraftEngineInstalled | `static boolean isCraftEngineInstalled(Plugin)` L44 PluginManager 查 CraftEngine 是否存在 |
+| isCraftEngineEnabled | `static boolean isCraftEngineEnabled(Plugin)` L49 存在且 isEnabled |
+| getCraftEngineInstanceIfReady | `static CraftEngine getCraftEngineInstanceIfReady()` L55 CraftEngine.instance() 异常吞掉返回 null |
+| getPackManagerIfReady | `static PackManager getPackManagerIfReady(Plugin)` L63 未装返回 null；instance 就绪才返回 packManager |
+| getCustomBlockId | `static String getCustomBlockId(Block)` L69 状态 owner 的 id 字符串 |
+| getCustomBlockState | `static ImmutableBlockState getCustomBlockState(Block)` L76 优先 BukkitWorldManager 已加载世界快速路径，回退 CraftEngineBlocks.getCustomBlockState；异常/空状态返回 null |
+| getLoadedChunk | `static CEChunk getLoadedChunk(World, int, int)` L99 已加载区块获取（未加载返回 null） |
+| getLoadedWorld（公开） | `static CEWorld getLoadedWorld(World)` L104 经 BukkitWorldManager 取已加载 CE 世界 |
+| getLoadedWorld（私有） | `private static CEWorld getLoadedWorld(BukkitWorldManager, World)` L115 内部实现：按 UID 取 BukkitWorld→storageWorld 并校验 UUID 一致 |
+| isCustomBlock | `static boolean isCustomBlock(Block, String id)` L125 id 与方块自定义 id 相等 |
+| getBlockEntityId | `static String getBlockEntityId(BlockEntity)` L130 方块实体状态 owner id |
+| isBlockEntity | `static boolean isBlockEntity(BlockEntity, String id)` L137 id 与方块实体 id 相等 |
+| matchesAnyBlock | `static boolean matchesAnyBlock(Block, Collection<String>)` L142 方块 id 命中集合任一 |
+| matchesAnyBlockEntity | `static boolean matchesAnyBlockEntity(BlockEntity, Collection<String>)` L147 方块实体 id 命中集合任一 |
+| isValidBlockId | `static boolean isValidBlockId(String ceBlockId)` L153 Key.of+byId 命中；CE 方块表为空（未加载）或解析异常时宽容返回 true |
+| getBaseMaterial | `static Material getBaseMaterial(String ceBlockId)` L169 查缓存→CraftEngineBlocks.byId→defaultState 材质并回填缓存 |
+| placeCustomBlock | `static boolean placeCustomBlock(Block, String id)` L184 CraftEngineBlocks.place 按 Key 放置 |
+| advanceCustomBlockIntProperty | `static boolean advanceCustomBlockIntProperty(Block, String, int maxValue)` L190 读当前 int 属性，-1 或越界 false，否则 set 为 +1 |
+| getCustomBlockIntProperty | `static int getCustomBlockIntProperty(Block, String, int fallback)` L196 字符串属性 parseInt |
+| getCustomBlockProperty | `static String getCustomBlockProperty(Block, String)` L202 读任意属性值字符串 |
+| setCustomBlockProperty | `static boolean setCustomBlockProperty(Block, String, String)` L216 按 valueByName 找值并 with+place 更新状态 |
+| isItem | `static boolean isItem(ItemStack, String id)` L237 `#` 前缀：CE 物品标签或原版 Tag；CE 自定义物品比 id/value；否则原版 Material 匹配 |
+| getCustomItemId | `static String getCustomItemId(ItemStack)` L270 非自定义或空返回 null |
+| matchesAnyItem | `static boolean matchesAnyItem(ItemStack, Collection<String>)` L278 逐 id isItem 短路 |
+| getItemIdentifier | `static String getItemIdentifier(ItemStack)` L286 CE id 优先否则原版 key |
+| getCraftRemainderId | `static String getCraftRemainderId(String itemId)` L293 非 minecraft 命名空间先查 CE craftRemainder（含 Item.byId 校验与 count>0）；再回退原版 craftingRemainingItem |
+| createItem | `static ItemStack createItem(String id, int amount)` L335 amount 钳 ≥1；带命名空间且非 minecraft 走 CE byId buildBukkitItem；否则原版材质构造 |
+| materialFromId | `static Material materialFromId(String id)` | L355 | R6 起进程级 CHM 读穿缓存（命中 Optional 哨兵区分空值与未命中）；未命中经 resolveMaterial 直算并回填（受 8192 上限约束） |
+| resolveMaterial | `private static Material resolveMaterial(String id)` | L368 | 剥 minecraft: 前缀（toLowerCase 判前缀、substring 保原大小写）后 Material.valueOf，含冒号或未知名返回 null |
+| parseInt | `private static int parseInt(String, int fallback)` | L380 | NumberFormatException 回退 |
 
 ### 2.30 CraftEngineVersionGate（`src/main/java/dev/tako/papersdelight/compat/CraftEngineVersionGate.java`，84 行）
 **职责**：CE 最低版本门禁：从 papersdelight-build.properties 读编译期写入的 craftengine.version 并做数值比较。

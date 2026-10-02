@@ -326,12 +326,12 @@ graph LR
 | `client` | 3 | `PapersDelightClient` 62 行 | 同上 |
 | `config` | 5 | `ConfigManager` 783 行 | 同上 |
 | `registration`（含 `config` 子包） | 14 | `PapersDelightRecipeParser` 340 行 | 同上 |
-| `ce` / `compat` / `support` | 4 | `CraftEngineUtil` 367 行 | 同上 |
+| `ce` / `compat` / `support` | 4 | `CraftEngineUtil` 387 行 | 同上 |
 | `command` | 1 | `PapersDelightCommand` 332 行 | 同上 |
 | 根包 `Metrics` | 1 | `Metrics` 905 行（bStats 内嵌） | 同上 |
 | `cookingpot` | 10 | `CookingPotManager` 1649 行 | [modules/01](modules/01-cookingpot-gui.md) |
 | `gui`（含 `module/*`、`recipebrowser`） | 10 | `CookingPotRecipeBook` 1097 行、`RecipeBrowserManager` 815 行 | 同上 |
-| `jug`（含 `recipe`） | 38 | `JugManager` 1118 行 | [modules/02](modules/02-jug.md) |
+| `jug`（含 `recipe`） | 38 | `JugManager` 1120 行 | [modules/02](modules/02-jug.md) |
 | `mechanic/cutting` | 5 | `CuttingBoardManager` 1533 行 | [modules/03](modules/03-cutting-skillet-skewer-stove.md) |
 | `mechanic/skillet` | 12 | `SkilletManager` 1032 行 | 同上 |
 | `mechanic/skewer` | 11 | `HandheldSkewerManager` 617 行 | 同上 |

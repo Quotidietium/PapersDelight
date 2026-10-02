@@ -194,7 +194,7 @@ graph TD
 | onControllerUnloaded | `void onControllerUnloaded(JugBlockEntityController controller)` | 202 | 控制器卸载回调：算出 Location 并从 controllerCache 移除 |
 | locationOf | `private static Location locationOf(JugBlockEntityController controller)` | 208 | CEWorld.name → Bukkit World → BlockPos 转 Location（toBlockLocation 归一化坐标） |
 | tickJug | `void tickJug(JugBlockEntityController controller, CEWorld ceWorld, BlockPos cePos)` | 217 | tick 主入口（见 3.3 详解）：TickBatch 批量补偿跳帧；每 8 hopperTicks 处理漏斗；无主无槽休眠跳过；否则按 emptyInput→fillInput→emptyInputGeneric→fillInputGeneric→processSoaking 短路链执行 elapsed 次；GUI 打开时前后同步输入槽并 populateMenu |
-| syncInputSlot | `private void syncInputSlot(Location location, JugBlockEntityController controller, Inventory inventory)` | 243 | GUI→数据方向同步：若命中 skipNextInputRead 一次性标志则改走 refreshInputSlot（数据→GUI）；否则把玩家看到的输入槽写回 controller.input |
+| syncInputSlot | `private void syncInputSlot(Location location, JugBlockEntityController controller, Inventory inventory)` | 243 | GUI→数据方向同步：若命中 skipNextInputRead 一次性标志则改走 refreshInputSlot（数据→GUI）；否则先 itemsEqual 比较库存槽与 controller.input（R6 起常见路径零克隆），仅不相等才把原槽引用交给 controller.input（内部 normalize 自带克隆解耦） |
 | refreshInputSlot | `private void refreshInputSlot(Location location, Inventory inventory, JugBlockEntityController controller)` | 252 | 数据→GUI 方向：把 controller.input 写回 GUI 槽并清 skipNextInputRead |
 | clearMenuInputSlot | `private static void clearMenuInputSlot(Inventory inventory)` | 259 | 清空 GUI 输入槽（持久化会话前调用） |
 | sessionOwner | `private Player sessionOwner(Location location)` | 263 | 取该位置的会话拥有者；不在线则持久化输入、关闭会话、补结算 GUI 爆炸，返回 null |

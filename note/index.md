@@ -39,6 +39,7 @@ Java 21 · Gradle Kotlin DSL · Paper API 1.21 · Folia 区域调度（CC-Schedu
 | R3 | 容器 tick 路径（产物原型缓存消除逐 tick CraftEngine 构建、支撑属性节流、漏斗扫描零分配、缓存门量化） | [report/perf/03](report/perf/03-r3-container-tick.md) | 0 回归；集成路径以调用消除论证；potCache 缓存门 21.2ns vs 全量匹配 312.9ns |
 | R4 | 文本解析热路径（TextUtil 解析结果缓存 + 零分配标签扫描） | [report/perf/04](report/perf/04-r4-text-parse.md) | 静态文本解析 **~1291x**、8 行 lore **~606x**、纯 legacy ~34x、病态 miss 路径 +22.8% |
 | R5 | 原始 jar 全量回归 + 综合报告 | [report/perf/05](report/perf/05-r5-full-regression.md) | 对 1.2.1 原始版累计 **24 项提升 / 0 回归**（1.2x~1304x），3 项有界代价透明记录 |
+| R6 | 物品标识解析与标签键缓存（materialFromId 进程级缓存、matchesAdvancedTag 复用 CE_KEYS、Jug 输入槽先比后克隆） | [report/perf/06](report/perf/06-r6-id-resolution.md) | materialFromId 命中 **12.6~24.1x**、未知名（异常路径）**315x**、advtag 每次省 ~16ns Key 解析；0 回归 |
 
 基准框架与协议见 `benchmark/`（分组独立 JVM、多样本最小值聚合、噪声带规则），操作规范见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
 

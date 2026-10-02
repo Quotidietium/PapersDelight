@@ -141,7 +141,7 @@ graph LR
 | --- | --- | --- | --- |
 | — | 无方法，纯数据类 | — | 三个字段构成；LinkedHashMap 维持子节点确定性遍历顺序，保证 dfsMatch 结果可复现 |
 
-### 2.4 DefaultItemMatcherResolver（`recipe/DefaultItemMatcherResolver.java`，82 行）
+### 2.4 DefaultItemMatcherResolver（`recipe/DefaultItemMatcherResolver.java`，87 行）
 
 **职责**：ItemMatcherResolver 的默认实现——把「物品 id / 标签 / 高级标签」三种匹配意图落到 CraftEngine 与 Bukkit 的实际判定上；单例 INSTANCE 被全项目共享。
 **继承/接口**：`implements ItemMatcherResolver<ItemStack>`（外部 dev.tako API），`final` 类。
@@ -155,9 +155,10 @@ graph LR
 | DefaultItemMatcherResolver | `DefaultItemMatcherResolver(Supplier<AdvancedTagSnapshot>)` | 29 | 包私有：注入快照供应者 |
 | matchesItem | `@Override public boolean matchesItem(ItemStack item, String itemId)` | 33 | 委托 CraftEngineUtil.isItem 做具体物品 id 判定 |
 | matchesTag | `@Override public boolean matchesTag(ItemStack item, String tagId)` | 39 | 空值防御后调 TagExpander.anyMatch；tagPredicate=matchesRuntimeTag（R1 起内部直接小写后转发），itemPredicate=matchesItem；支持嵌套 tag 递归短路 |
-| matchesAdvancedTag | `@Override public boolean matchesAdvancedTag(ItemStack item, String tagId)` | 49 | 取 CE 物品标识符，查活跃高级标签快照 containsItem；任何 RuntimeException 视为不匹配（防御性降级） |
+| matchesAdvancedTag | `@Override public boolean matchesAdvancedTag(ItemStack item, String tagId)` | 49 | 取 CE 物品标识符，查活跃高级标签快照 containsItem；tagId→Key 经 ceKey 进程级缓存（R6，消除每次 Key.of 分配解析）；任何 RuntimeException 视为不匹配（防御性降级） |
 | matchesRuntimeTag | `private static boolean matchesRuntimeTag(ItemStack item, String tagId)` | 64 | 先经 CE_KEYS 缓存取 CE Key 试 CraftEngineItems.byItemStack 的运行时标签；CE 自定义物品未命中则直接否；否则经 NS_KEYS 缓存取 NamespacedKey 回落 Bukkit.getTag(REGISTRY_ITEMS) 的 Material 标签；全程 Throwable 吞掉保证不因 CE 异常中断匹配 |
-| ceKey | `private static Key ceKey(String tagId)` | 79 | CE Key 缓存包装（R1） |
+| ceKey | `private static Key ceKey(String tagId)` | 79 | CE Key 缓存包装（R1；R6 起 matchesAdvancedTag 亦复用） |
+| cachedKeyForBenchmark | `static Key cachedKeyForBenchmark(String tagId)` | 84 | R6 基准专用：暴露 ceKey 缓存命中路径供离线度量（包私有，见 benchmark IdResolutionBench） |
 
 ### 2.5 TagExpander（`recipe/TagExpander.java`，75 行）
 
