@@ -14,8 +14,8 @@ repositories {
 
 dependencies {
     paperweight.paperDevBundle(libs.versions.mc1214.get())
-    compileOnly(project(":Minecraft-Bridge:api"))
-    compileOnly(project(":Minecraft-Bridge"))
+    compileOnly(project(":NMS-Bridge:api"))
+    compileOnly(project(":NMS-Bridge"))
     compileOnly(libs.papersDelightApi) { isTransitive = false }
 }
 

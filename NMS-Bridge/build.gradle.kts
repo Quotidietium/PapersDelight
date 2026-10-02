@@ -3,7 +3,7 @@ plugins {
 }
 
 dependencies {
-    api(project(":Minecraft-Bridge:api"))
+    api(project(":NMS-Bridge:api"))
     compileOnly(libs.paperApiBridge)
 }
 

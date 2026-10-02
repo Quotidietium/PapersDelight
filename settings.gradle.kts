@@ -42,9 +42,9 @@ buildCache {
     }
 }
 
-include(":Minecraft-Bridge")
-include(":Minecraft-Bridge:api")
-include(":Minecraft-Bridge:v1_21_1")
-include(":Minecraft-Bridge:v1_21_4")
-include(":Minecraft-Bridge:v1_21_10")
-include(":Minecraft-Bridge:v1_21_11")
+include(":NMS-Bridge")
+include(":NMS-Bridge:api")
+include(":NMS-Bridge:v1_21_1")
+include(":NMS-Bridge:v1_21_4")
+include(":NMS-Bridge:v1_21_10")
+include(":NMS-Bridge:v1_21_11")

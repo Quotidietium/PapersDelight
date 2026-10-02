@@ -24,11 +24,11 @@ val foliaRuntime = javaToolchains.launcherFor {
 dependencies {
     implementation(libs.papersDelightApi)
     implementation(libs.ccScheduler)
-    implementation(project(":Minecraft-Bridge"))
-    implementation(project(":Minecraft-Bridge:v1_21_1"))
-    implementation(project(":Minecraft-Bridge:v1_21_4"))
-    implementation(project(":Minecraft-Bridge:v1_21_10"))
-    implementation(project(":Minecraft-Bridge:v1_21_11"))
+    implementation(project(":NMS-Bridge"))
+    implementation(project(":NMS-Bridge:v1_21_1"))
+    implementation(project(":NMS-Bridge:v1_21_4"))
+    implementation(project(":NMS-Bridge:v1_21_10"))
+    implementation(project(":NMS-Bridge:v1_21_11"))
     implementation(libs.jetbrainsAnnotations)
 
     compileOnly(libs.paperApi)
@@ -39,17 +39,6 @@ dependencies {
     compileOnly(libs.placeholderApi)
     compileOnly(libs.libuid)
 
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.4")
-    testImplementation("org.mockito:mockito-core:5.14.2")
-    testImplementation(libs.paperApi)
-    testImplementation(libs.craftEngineCore)
-    testImplementation(libs.craftEngineBukkit)
-    testImplementation(libs.libuid)
-}
-
-tasks.test {
-    useJUnitPlatform()
 }
 
 tasks.withType<JavaCompile>().configureEach {
