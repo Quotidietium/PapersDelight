@@ -309,6 +309,7 @@ graph TD
 | instance | static volatile | 单例，供 Behavior/Controller 反查 |
 | knownSkillets | Set of Location | 已知方块煎锅 |
 | displayEntities | Map of Location to List of ItemDisplay | 食物展示实体 |
+| displayedSignatures | Map of Location to ItemStack | R7 显示签名：展示实体当前渲染的存储堆快照（私有克隆）；物品未变时跳过逐实体刷新 |
 | particleSkillets | Set of Location | 正在加热（出粒子）的煎锅 |
 | restored | Set of Location | 本轮区块扫描已恢复过展示的位置 |
 | handheldSessions | Map of UUID to HandheldSession | 每玩家手持会话 |
@@ -355,11 +356,11 @@ graph TD
 | onHandheldSkilletJump | void onHandheldSkilletJump(PlayerJumpEvent) | 469 | 事件：记录翻面起跳 |
 | onHandheldSkilletDeath | void onHandheldSkilletDeath(PlayerDeathEvent) | 475 | 事件：移会话停任务；保留背包则还原进度否则逐掉落物还原；escrow 原料退还背包或加入掉落 |
 | ejectCooked | void ejectCooked(SkilletBlockEntityController, Block, ItemStack result) | 528 | 方块煎锅出菜：向右侧弹射掉落；按 placerUuid 记统计 |
-| tickSkillet | void tickSkillet(ctrl, CEWorld, BlockPos) | 540 | 方块煎锅每 tick：空锅清粒子与展示即返回；TickBatch.due 计算应补 tick 数；热源 10 tick 缓存；粒子集合增删；逐补 tick——粒子节拍到点且附近有观察者才 particleTick、serverTick 出菜即弹射；最后同步展示实体 |
-| forgetSkillet | void forgetSkillet(ctrl) | 588 | 方块卸载回调：清 knownSkillets/restored/粒子/展示 |
-| blockLocation | static Location blockLocation(ctrl) | 597 | 由控制器还原 Bukkit Location |
-| bukkitBlock | static Block bukkitBlock(CEWorld, BlockPos) | 606 | CE 坐标转 Bukkit 方块 |
-| ejectToRightSide | void ejectToRightSide(Block block, ItemStack item) | 611 | 按朝向右侧 0.15 速度 + 0.1 向上弹射，拾取延迟 10 tick |
+| tickSkillet | void tickSkillet(ctrl, CEWorld, BlockPos) | 546 | 方块煎锅每 tick：空锅清粒子与展示即返回；TickBatch.due 计算应补 tick 数；热源 10 tick 缓存；粒子集合增删；逐补 tick——粒子节拍到点且附近有观察者才 particleTick、serverTick 出菜即弹射；最后同步展示实体（R7 起直取存储堆内部引用，省每 tick 防御性克隆） |
+| forgetSkillet | void forgetSkillet(ctrl) | 596 | 方块卸载回调：清 knownSkillets/restored/粒子/展示 |
+| blockLocation | static Location blockLocation(ctrl) | 605 | 由控制器还原 Bukkit Location |
+| bukkitBlock | static Block bukkitBlock(CEWorld, BlockPos) | 614 | CE 坐标转 Bukkit 方块 |
+| ejectToRightSide | void ejectToRightSide(Block block, ItemStack item) | 619 | 按朝向右侧 0.15 速度 + 0.1 向上弹射，拾取延迟 10 tick |
 | onChunkLoad | void onChunkLoad(ChunkLoadEvent) | 626 | 事件：延迟 1 tick 且区块仍加载才扫描 |
 | onChunkUnload | void onChunkUnload(ChunkUnloadEvent) | 636 | 事件：清该区块的煎锅追踪、粒子与展示 |
 | scanChunk | void scanChunk(World, int, int) | 651 | 扫描重载（默认 1 次重试） |
@@ -372,9 +373,9 @@ graph TD
 | isTraySource | boolean isTraySource(Block block) | 797 | 判断下方是 tray 热源，或经 conductor 传导的隔层 tray 热源（烤盘支撑判定） |
 | updateAutomaticSupport | void updateAutomaticSupport(Block block) | 815 | 比对并刷新 CE 方块 support 属性（自动支架模型切换） |
 | getModelCount | static int getModelCount(ItemStack stack) | 823 | 展示模型数公式（同砧板） |
-| spawnDisplayEntity | void spawnDisplayEntity(Block, ItemStack item) | 828 | 生成锅内食物展示：按数量确定性随机堆叠、按朝向 yaw 与配置 pitch/scale 变换 |
-| updateDisplayInPlace | void updateDisplayInPlace(Block, ItemStack item) | 873 | 原地更新展示（同砧板逻辑：重建/更新/裁剪） |
-| removeAllDisplayEntities | void removeAllDisplayEntities(Location loc) | 905 | 移除该位置全部展示 |
+| spawnDisplayEntity | void spawnDisplayEntity(Block, ItemStack item) | 836 | 生成锅内食物展示：按数量确定性随机堆叠、按朝向 yaw 与配置 pitch/scale 变换；R7 起记录显示签名 |
+| updateDisplayInPlace | void updateDisplayInPlace(Block, ItemStack item) | 882 | 原地更新展示（重建/更新/裁剪）；R7 起显示签名 diff 门：物品未变（含数量）且实体齐全时跳过逐实体 clone+setItemStack（稳态每 tick 省 N 次克隆与元数据包），有效性扫描由 stream 改为普通循环零分配 |
+| removeAllDisplayEntities | void removeAllDisplayEntities(Location loc) | 931 | 移除该位置全部展示并清显示签名 |
 | stopParticleTask | void stopParticleTask(Location loc) | 914 | 从粒子集合移除 |
 | particleTick | void particleTick(Block block) | 918 | 粒子节拍：仍加热且锅内有物才出——白烟 20% 概率；火焰附加等级触发附魔粒子；10% 概率滋滋声且经节流 |
 | getController | SkilletBlockEntityController getController(Block) | 964 | 方块→控制器 |
@@ -404,6 +405,7 @@ graph TD
 | tick | static void tick(CEWorld, BlockPos, ImmutableBlockState, ctrl) | 53 | ticker 入口：转发 SkilletManager.tickSkillet |
 | onUnload | void onUnload() | 59 | 卸载回调：转发 forgetSkillet |
 | getStoredStack | ItemStack getStoredStack() | 64 | 克隆读存货 |
+| storedStackDirect | ItemStack storedStackDirect() | 69 | 包私有只读直取（R7）：仅供同包 tick 路径，调用方不得修改，快照自行 clone |
 | hasStoredStack | boolean hasStoredStack() | 68 | 有存货 |
 | isEmpty | boolean isEmpty() | 72 | 无存货 |
 | addItemToCook | ItemStack addItemToCook(ItemStack) | 76 | 无放置者重载 |
@@ -829,7 +831,7 @@ graph TD
 | --- | --- | --- | --- |
 | settle | static boolean settle(boolean pluginEnabled, T target, Consumer of T synchronous, Consumer of T dispatched) | 10 | 禁用→同步执行返回 true；否则派发返回 false |
 
-### 2.29 StoveManager（`mechanic/stove/StoveManager.java`，509 行）
+### 2.29 StoveManager（`mechanic/stove/StoveManager.java`，515 行）
 
 **职责**：烤炉总管——已知烤炉追踪、六槽烹饪 tick（含 TickBatch 补偿、遮蔽弹出、粒子/环境音节拍）、六点展示实体、区块扫描恢复与高温燃烧区外的全部生命周期管理。
 
@@ -858,9 +860,10 @@ graph TD
 | stopAll | void stopAll() | 73 | 停机：移除全部展示（禁用时同步 remove）、清四个集合 |
 | discoverAllStoves | void discoverAllStoves() | 90 | 启动全量分批扫描 |
 | scanBatch | void scanBatch(List of Chunk, int start) | 100 | 每批 4 区块区域调度扫描，2 tick 续批 |
-| tickStove | void tickStove(ctrl, CEWorld, BlockPos) | 113 | 每 tick：方块已空则清追踪；TickBatch.due 补偿；lit 状态维护粒子集合；未点燃且空则返回；计算上方是否被遮蔽及掉落点；逐补偿 tick——点燃时节拍触发 particleTickActive 与 ambientSoundTick；非空且上方被遮蔽则全部弹出食物并清展示；serverTick 返回完成槽逐个弹落并移除对应展示 |
-| jitteredInterval | static long jitteredInterval(long intervalTicks) | 174 | ±interval/2 抖动，最小 1 |
-| ambientDelay | static long ambientDelay(AmbientSound sound) | 179 | 区间内均匀随机下次环境音延迟 |
+| tickStove | void tickStove(ctrl, CEWorld, BlockPos) | 113 | 每 tick：方块已空则清追踪；TickBatch.due 补偿；lit 状态维护粒子集合；未点燃且空则返回；逐补偿 tick——点燃时节拍触发 particleTickActive 与 ambientSoundTick；非空且上方被遮蔽（isBlockedAbove）则全部弹出食物并清展示；serverTick 返回完成槽逐个弹落并移除对应展示。R7 起掉落点 dropLoc 惰性分配（仅真正产生掉落物时）、遮蔽检查仅在非空时执行——点燃但空的炉子不再每 tick 付 getRelative+getType+Location 克隆 |
+| jitteredInterval | static long jitteredInterval(long intervalTicks) | 180 | ±interval/2 抖动，最小 1 |
+| isBlockedAbove | static boolean isBlockedAbove(Block) | 174（R7 提取） | 上方方块非三类空气即被遮蔽 |
+| ambientDelay | static long ambientDelay(AmbientSound sound) | 185 | 区间内均匀随机下次环境音延迟 |
 | forgetStove | void forgetStove(ctrl) | 184 | 卸载回调：清四类记录 |
 | bukkitBlock | static Block bukkitBlock(CEWorld, BlockPos) | 197 | CE→Bukkit 方块 |
 | onChunkLoad | void onChunkLoad(ChunkLoadEvent) | 202 | 事件：延迟 1 tick 且仍加载才扫描 |

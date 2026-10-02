@@ -549,27 +549,27 @@ graph LR
 | containsKv | `private static boolean containsKv(String data, String key, String value)` | 71 | 零分配 `key=value` 谓词匹配：indexOf 定位 key 后 regionMatches 比对 value（语义与 `data.contains(key+"="+value)` 等价，含 value 为 key 前缀等碰撞场景；key/value 调用方已 toLowerCase） |
 | checkLit | `public static boolean checkLit(Block block)` | 95 | 点燃态：BlockData 为 Lightable→isLit；CE 自定义属性 "lit"→Boolean.parseBoolean；两者皆无→true（不可点燃的方块恒视为点燃） |
 
-### 2.23 MealLoreUtil（`util/MealLoreUtil.java`，184 行）
+### 2.23 MealLoreUtil（`util/MealLoreUtil.java`，188 行）
 
 **职责**：餐品容器（碗/盘）lore 与视觉呈现：份数行 + 餐名行（含 CE 图标字形）、隐形耐久条编码份数、覆盖展示堆叠上限。
 **继承/接口**：无，静态工具类。
-**关键字段**：`SINGLE_SERVING_KEY/MANY_SERVINGS_KEY`（L25-27，FD 风格可翻译 tooltip 键）；`BAR_MAX`（L29，=64，份数条满值）。
+**关键字段**：`SINGLE_SERVING_KEY/MANY_SERVINGS_KEY`（L25-27，FD 风格可翻译 tooltip 键）；`BAR_MAX`（L29，=64，份数条满值）；`tooltipDisplaySupported`（L119，volatile Boolean，R7 起缓存版本判定——版本号运行期不变）。
 
 **方法清单表**：
 
 | 方法 | 签名 | 行号 | 行为说明 |
 | --- | --- | --- | --- |
 | MealLoreUtil | `private MealLoreUtil()` | 31 | 禁止实例化 |
-| applyMealLore | `public static void applyMealLore(ItemStack container, @Nullable ItemStack meal)` | 34 | 主入口：容器/餐品任一为空直接返回；取 meta 组两行 lore（份数行 + 餐名行）写回；随后 applyServingsBar 编码份数条 |
-| buildNameLine | `private static Component buildNameLine(ItemStack meal)` | 53 | 餐名行：CE translationKey 优先的显示组件，白色非斜体；能解析出图标字形则前缀「字形 + 空格 + 名称」 |
-| buildServingsLine | `private static Component buildServingsLine(int servings)` | 68 | 份数行：<=1 用 single_serving 可翻译键，否则 many_servings + 数字参数；灰色非斜体 |
-| resolveIconGlyph | `@Nullable private static Component resolveIconGlyph(ItemStack meal)` | 76 | 取 CE 物品 id→fontManager.imageById 找字体图→miniMessageAt(0,0) 得 MiniMessage 串→反序列化为字形组件；全程 Throwable 吞掉返回 null |
-| itemDisplayComponent | `private static Component itemDisplayComponent(ItemStack meal)` | 96 | CE 物品定义的 translationKey 优先（支持资源包自定义名），否则原版 Material translationKey |
-| applyServingsBar | `private static void applyServingsBar(ItemStack container, int servings)` | 109 | 仅 1.21.2+（supportsTooltipDisplay）执行：份数夹取 1~64；Damageable maxDamage=64、damage=64-份数——耐久条即份数进度条；随后 hideDurabilityLine 隐藏数字 |
-| hideDurabilityLine | `private static void hideDurabilityLine(ItemStack container)` | 123 | 经 CE BukkitItemManager 写 TOOLTIP_DISPLAY.hidden_components=[DAMAGE, MAX_DAMAGE]，隐藏耐久数字行只留图形条；异常静默 |
-| overrideMaxStackSize | `public static void overrideMaxStackSize(ItemStack display, int size)` | 147 | 展示物品堆叠上限覆盖：夹取 1~99，经 CE MAX_STACK_SIZE 组件写入（GUI 展示用） |
-| supportsTooltipDisplay | `private static boolean supportsTooltipDisplay()` | 168 | 解析 Bukkit.getMinecraftVersion，>=1.21.2 才支持 TOOLTIP_DISPLAY 组件 |
-| versionPart | `private static int versionPart(String[] parts, int index)` | 176 | 版本号分段安全解析，越界/非法返回 0 |
+| applyMealLore | `public static void applyMealLore(ItemStack container, @Nullable ItemStack meal)` | 34 | 主入口：容器/餐品任一为空直接返回；一遍 meta 完成两行 lore（份数行 + 餐名行）与份数条编码（R7 起并入同一遍 getItemMeta/setItemMeta，原实现分两遍多付一对 meta 复制）；条已编码才 hideDurabilityLine |
+| buildNameLine | `private static Component buildNameLine(ItemStack meal)` | 62 | 餐名行：CE translationKey 优先的显示组件，白色非斜体；能解析出图标字形则前缀「字形 + 空格 + 名称」 |
+| buildServingsLine | `private static Component buildServingsLine(int servings)` | 77 | 份数行：<=1 用 single_serving 可翻译键，否则 many_servings + 数字参数；灰色非斜体 |
+| resolveIconGlyph | `@Nullable private static Component resolveIconGlyph(ItemStack meal)` | 86 | 取 CE 物品 id→fontManager.imageById 找字体图→miniMessageAt(0,0) 得 MiniMessage 串→反序列化为字形组件；全程 Throwable 吞掉返回 null |
+| itemDisplayComponent | `private static Component itemDisplayComponent(ItemStack meal)` | 105 | CE 物品定义的 translationKey 优先（支持资源包自定义名），否则原版 Material translationKey |
+| hideDurabilityLine | `private static void hideDurabilityLine(ItemStack container)` | 135 | 经 CE BukkitItemManager 写 TOOLTIP_DISPLAY.hidden_components=[DAMAGE, MAX_DAMAGE]，隐藏耐久数字行只留图形条；异常静默 |
+| overrideMaxStackSize | `public static void overrideMaxStackSize(ItemStack display, int size)` | 159 | 展示物品堆叠上限覆盖：夹取 1~99，经 CE MAX_STACK_SIZE 组件写入（GUI 展示用） |
+| supportsTooltipDisplay | `private static boolean supportsTooltipDisplay()` | 121 | 版本 >=1.21.2 判定；R7 起首次解析后缓存 volatile Boolean（原每次调用 split+3×parseInt，基准量化 ~57-75ns/次） |
+| versionAtLeast | `private static boolean versionAtLeast(int, int, int)` | 131 | 三段阈值比较（R7 从原内联逻辑提取） |
+| versionPart | `private static int versionPart(String[] parts, int index)` | 180 | 版本号分段安全解析，越界/非法返回 0 |
 
 **餐品 lore 生成详解**：烹饪锅取出餐食时，容器物品获得两行 lore——第一行「N 份」用 FD 兼容的可翻译键（资源包可本地化），第二行「图标 + 餐名」，均强制非斜体灰/白色以区别于普通附魔 lore。份数的视觉化用「劫持耐久条」实现：maxDamage 固定 64、damage=64-份数，耐久条越长剩余份数越多；再借 CE 的 TOOLTIP_DISPLAY 组件隐藏 DAMAGE/MAX_DAMAGE 两条文字，玩家只见图形条不见数字——这是 FarmersDelight 系资源包的经典呈现手法在 CE 数据组件时代的等价实现。
 

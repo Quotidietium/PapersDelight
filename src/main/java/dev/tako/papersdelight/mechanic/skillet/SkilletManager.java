@@ -66,6 +66,11 @@ public final class SkilletManager implements Listener {
 
     private final Map<Location, List<ItemDisplay>> displayEntities = new ConcurrentHashMap<>();
 
+    // R7 显示签名：位置 → 当前展示实体所渲染的存储堆快照（私有克隆）。
+    // 物品未变且实体齐全时跳过逐实体 clone+setItemStack（原实现每 tick 无条件刷新）。
+    // 存储堆会被控制器原地减数（cookAndOutput 的 setAmount），故必须快照而不能持内部引用。
+    private final Map<Location, ItemStack> displayedSignatures = new ConcurrentHashMap<>();
+
     private final Set<Location> particleSkillets = ConcurrentHashMap.newKeySet();
     private final Set<Location> restored = ConcurrentHashMap.newKeySet();
     private final Map<UUID, HandheldSession> handheldSessions = new ConcurrentHashMap<>();
@@ -123,6 +128,7 @@ public final class SkilletManager implements Listener {
             }
         }
         displayEntities.clear();
+        displayedSignatures.clear();
         knownSkillets.clear();
         restored.clear();
     }
@@ -578,7 +584,9 @@ public final class SkilletManager implements Listener {
         }
 
         if (ctrl.hasStoredStack()) {
-            updateDisplayInPlace(block, ctrl.getStoredStack());
+            // R7：直取内部引用（只读；updateDisplayInPlace 内部自行 clone 快照/视觉件），
+            // 省去原 getStoredStack 每 tick 的防御性克隆
+            updateDisplayInPlace(block, ctrl.storedStackDirect());
         } else {
             removeAllDisplayEntities(loc);
             particleSkillets.remove(loc);
@@ -868,15 +876,25 @@ public final class SkilletManager implements Listener {
             spawned.add(display);
         }
         displayEntities.put(blockLoc, spawned);
+        displayedSignatures.put(blockLoc, item.clone());
     }
 
     private void updateDisplayInPlace(Block block, ItemStack item) {
         Location loc = block.getLocation().toBlockLocation();
         List<ItemDisplay> existing = displayEntities.get(loc);
-        if (existing == null || existing.isEmpty() || existing.stream().noneMatch(ItemDisplay::isValid)) {
+        if (existing == null || existing.isEmpty()) {
             spawnDisplayEntity(block, item);
             return;
         }
+        boolean anyValid = false;
+        for (ItemDisplay d : existing) {
+            if (d.isValid()) { anyValid = true; break; }
+        }
+        if (!anyValid) {
+            spawnDisplayEntity(block, item);
+            return;
+        }
+
         int newCount = getModelCount(item);
         int oldCount = existing.size();
 
@@ -885,13 +903,21 @@ public final class SkilletManager implements Listener {
             return;
         }
 
+        // R7：物品未变（含数量）且无需收缩时，跳过逐实体 clone+setItemStack——
+        // 稳态（物品静置烹饪）每 tick 每煎锅省 N 次 ItemStack.clone 与 N 次展示实体元数据包。
+        ItemStack last = displayedSignatures.get(loc);
+        if (last != null && last.equals(item)) return;
+
+        boolean updatedAny = false;
         for (int i = 0; i < oldCount; i++) {
             ItemDisplay d = existing.get(i);
             if (!d.isValid()) continue;
             ItemStack visual = item.clone();
             visual.setAmount(1);
             d.setItemStack(visual);
+            updatedAny = true;
         }
+        if (updatedAny) displayedSignatures.put(loc, item.clone());
 
         if (newCount < oldCount) {
             for (int i = newCount; i < oldCount; i++) {
@@ -904,6 +930,7 @@ public final class SkilletManager implements Listener {
 
     private void removeAllDisplayEntities(Location loc) {
         List<ItemDisplay> list = displayEntities.remove(loc.toBlockLocation());
+        displayedSignatures.remove(loc.toBlockLocation());
         if (list != null) {
             for (ItemDisplay d : list) {
                 if (d != null && d.isValid()) d.remove();

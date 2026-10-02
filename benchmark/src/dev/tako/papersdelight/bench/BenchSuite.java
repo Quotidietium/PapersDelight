@@ -31,6 +31,7 @@ public final class BenchSuite {
             dev.tako.papersdelight.recipe.TagExpanderBench.run(results);
             dev.tako.papersdelight.recipe.IdResolutionBench.run(results);
             dev.tako.papersdelight.common.TickBatchBench.run(results);
+            dev.tako.papersdelight.common.VersionParseBench.run(results);
             dev.tako.papersdelight.config.ConfigGetOrBench.run(results);
             dev.tako.papersdelight.heat.HeatSourceBench.run(results);
             dev.tako.papersdelight.cookingpot.PotTickBench.run(results);
@@ -43,7 +44,10 @@ public final class BenchSuite {
                     dev.tako.papersdelight.recipe.TagExpanderBench.run(results);
                     dev.tako.papersdelight.recipe.IdResolutionBench.run(results);
                 }
-                case "common" -> dev.tako.papersdelight.common.TickBatchBench.run(results);
+                case "common" -> {
+                    dev.tako.papersdelight.common.TickBatchBench.run(results);
+                    dev.tako.papersdelight.common.VersionParseBench.run(results);
+                }
                 case "config" -> dev.tako.papersdelight.config.ConfigGetOrBench.run(results);
                 case "heat" -> dev.tako.papersdelight.heat.HeatSourceBench.run(results);
                 case "container" -> dev.tako.papersdelight.cookingpot.PotTickBench.run(results);

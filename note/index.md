@@ -40,6 +40,7 @@ Java 21 · Gradle Kotlin DSL · Paper API 1.21 · Folia 区域调度（CC-Schedu
 | R4 | 文本解析热路径（TextUtil 解析结果缓存 + 零分配标签扫描） | [report/perf/04](report/perf/04-r4-text-parse.md) | 静态文本解析 **~1291x**、8 行 lore **~606x**、纯 legacy ~34x、病态 miss 路径 +22.8% |
 | R5 | 原始 jar 全量回归 + 综合报告 | [report/perf/05](report/perf/05-r5-full-regression.md) | 对 1.2.1 原始版累计 **24 项提升 / 0 回归**（1.2x~1304x），3 项有界代价透明记录 |
 | R6 | 物品标识解析与标签键缓存（materialFromId 进程级缓存、matchesAdvancedTag 复用 CE_KEYS、Jug 输入槽先比后克隆） | [report/perf/06](report/perf/06-r6-id-resolution.md) | materialFromId 命中 **12.6~24.1x**、未知名（异常路径）**315x**、advtag 每次省 ~16ns Key 解析；0 回归 |
+| R7 | 展示实体刷新与呈现路径（煎锅显示签名 diff 门、炉灶惰性掉落点、餐食 lore 单遍 meta + 版本判定缓存） | [report/perf/07](report/perf/07-r7-display-refresh.md) | 稳态每煎锅每 tick 省 N 次 clone+setItemStack 元数据包；版本解析消除实测 **57~75ns/次**；0 回归（含基准本地复刻件协议说明） |
 
 基准框架与协议见 `benchmark/`（分组独立 JVM、多样本最小值聚合、噪声带规则），操作规范见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
 

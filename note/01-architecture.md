@@ -333,9 +333,9 @@ graph LR
 | `gui`（含 `module/*`、`recipebrowser`） | 10 | `CookingPotRecipeBook` 1097 行、`RecipeBrowserManager` 815 行 | 同上 |
 | `jug`（含 `recipe`） | 38 | `JugManager` 1120 行 | [modules/02](modules/02-jug.md) |
 | `mechanic/cutting` | 5 | `CuttingBoardManager` 1533 行 | [modules/03](modules/03-cutting-skillet-skewer-stove.md) |
-| `mechanic/skillet` | 12 | `SkilletManager` 1032 行 | 同上 |
+| `mechanic/skillet` | 12 | `SkilletManager` 1059 行 | 同上 |
 | `mechanic/skewer` | 11 | `HandheldSkewerManager` 617 行 | 同上 |
-| `mechanic/stove` | 6 | `StoveManager` 509 行 | 同上 |
+| `mechanic/stove` | 6 | `StoveManager` 515 行 | 同上 |
 | `mechanic/farm` | 8 | `DoubleCropBlockBehavior` 1080 行 | [modules/04](modules/04-farm-villager-misc-effects.md) |
 | `mechanic/villager` | 7 | `VillagerHarvestManager` 272 行 | 同上 |
 | `mechanic/misc` | 7 | `RopeBlockBehavior` 280 行 | 同上 |

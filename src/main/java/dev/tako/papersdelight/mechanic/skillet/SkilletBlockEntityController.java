@@ -65,6 +65,11 @@ public final class SkilletBlockEntityController extends BlockEntityController {
         return storedStack.clone();
     }
 
+    /** 仅供同包 tick 路径只读直取（R7）：省去每 tick 防御性克隆；调用方不得修改该引用，快照需自行 clone。 */
+    ItemStack storedStackDirect() {
+        return storedStack;
+    }
+
     public boolean hasStoredStack() {
         return !storedStack.isEmpty();
     }

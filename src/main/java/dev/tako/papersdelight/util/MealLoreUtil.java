@@ -45,9 +45,18 @@ public final class MealLoreUtil {
         lore.add(buildNameLine(meal));
 
         meta.lore(lore);
-        container.setItemMeta(meta);
 
-        applyServingsBar(container, servings);
+        // R7：份量条并入同一遍 meta（原实现先 setItemMeta，再在 applyServingsBar 里
+        // 重新 getItemMeta/setItemMeta，每次上菜多付一对 meta 复制）
+        boolean barApplied = false;
+        if (supportsTooltipDisplay() && meta instanceof Damageable damageable) {
+            int clamped = Math.max(1, Math.min(BAR_MAX, servings));
+            damageable.setMaxDamage(BAR_MAX);
+            damageable.setDamage(Math.max(1, BAR_MAX - clamped));
+            barApplied = true;
+        }
+        container.setItemMeta(meta);
+        if (barApplied) hideDurabilityLine(container);
     }
 
     private static Component buildNameLine(ItemStack meal) {
@@ -106,18 +115,21 @@ public final class MealLoreUtil {
         return Component.translatable(meal.getType().translationKey());
     }
 
-    private static void applyServingsBar(ItemStack container, int servings) {
-        if (!supportsTooltipDisplay()) return;
+    /** 版本判定结果运行期不变（Bukkit.getMinecraftVersion 恒定），首次调用后缓存（R7）。 */
+    private static volatile Boolean tooltipDisplaySupported;
 
-        int clamped = Math.max(1, Math.min(BAR_MAX, servings));
+    private static boolean supportsTooltipDisplay() {
+        Boolean cached = tooltipDisplaySupported;
+        if (cached == null) {
+            String[] parts = Bukkit.getMinecraftVersion().split("\\.");
+            cached = versionAtLeast(versionPart(parts, 0), versionPart(parts, 1), versionPart(parts, 2));
+            tooltipDisplaySupported = cached;
+        }
+        return cached;
+    }
 
-        ItemMeta meta = container.getItemMeta();
-        if (!(meta instanceof Damageable damageable)) return;
-        damageable.setMaxDamage(BAR_MAX);
-        damageable.setDamage(Math.max(1, BAR_MAX - clamped));
-        container.setItemMeta(meta);
-
-        hideDurabilityLine(container);
+    private static boolean versionAtLeast(int major, int minor, int patch) {
+        return major > 1 || (major == 1 && (minor > 21 || (minor == 21 && patch >= 2)));
     }
 
     private static void hideDurabilityLine(ItemStack container) {
@@ -163,14 +175,6 @@ public final class MealLoreUtil {
         } catch (Throwable ignored) {
 
         }
-    }
-
-    private static boolean supportsTooltipDisplay() {
-        String[] parts = Bukkit.getMinecraftVersion().split("\\.");
-        int major = versionPart(parts, 0);
-        int minor = versionPart(parts, 1);
-        int patch = versionPart(parts, 2);
-        return major > 1 || (major == 1 && (minor > 21 || (minor == 21 && patch >= 2)));
     }
 
     private static int versionPart(String[] parts, int index) {

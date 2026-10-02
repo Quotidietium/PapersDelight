@@ -133,11 +133,9 @@ public final class StoveManager implements Listener {
         else particleStoves.remove(loc);
         if (!lit && ctrl.isEmpty()) return;
 
-        Block above = block.getRelative(0, 1, 0);
-        Material aboveMat = above.getType();
-        boolean blockedAbove = aboveMat != Material.AIR && aboveMat != Material.CAVE_AIR
-                && aboveMat != Material.VOID_AIR;
-        Location dropLoc = blockedAbove || !ctrl.isEmpty() ? loc.clone().add(0.5, 1.02, 0.5) : null;
+        // R7：dropLoc 惰性分配（仅真正产生掉落物时），blockedAbove 只在非空时检查——
+        // 点燃但空/未点燃的炉子不再每 tick 付一次 getRelative+getType+Location 克隆
+        Location dropLoc = null;
 
         for (int i = 0; i < elapsed; i++) {
             if (lit) {
@@ -155,7 +153,8 @@ public final class StoveManager implements Listener {
                 }
             }
             if (ctrl.isEmpty()) continue;
-            if (blockedAbove) {
+            if (isBlockedAbove(block)) {
+                if (dropLoc == null) dropLoc = loc.clone().add(0.5, 1.02, 0.5);
                 for (ItemStack item : ctrl.takeAllItems()) {
                     block.getWorld().dropItem(dropLoc, item);
                 }
@@ -164,11 +163,18 @@ public final class StoveManager implements Listener {
             }
             List<StoveBlockEntityController.CompletedSlot> completed = ctrl.serverTick(lit);
             if (completed.isEmpty()) continue;
+            if (dropLoc == null) dropLoc = loc.clone().add(0.5, 1.02, 0.5);
             for (var cs : completed) {
                 block.getWorld().dropItem(dropLoc, cs.result());
                 removeDisplayEntity(loc, cs.slot());
             }
         }
+    }
+
+    private static boolean isBlockedAbove(Block block) {
+        Material aboveMat = block.getRelative(0, 1, 0).getType();
+        return aboveMat != Material.AIR && aboveMat != Material.CAVE_AIR
+                && aboveMat != Material.VOID_AIR;
     }
 
     private static long jitteredInterval(long intervalTicks) {
