@@ -42,6 +42,7 @@ Java 21 · Gradle Kotlin DSL · Paper API 1.21 · Folia 区域调度（CC-Schedu
 | R6 | 物品标识解析与标签键缓存（materialFromId 进程级缓存、matchesAdvancedTag 复用 CE_KEYS、Jug 输入槽先比后克隆） | [report/perf/06](report/perf/06-r6-id-resolution.md) | materialFromId 命中 **12.6~24.1x**、未知名（异常路径）**315x**、advtag 每次省 ~16ns Key 解析；0 回归 |
 | R7 | 展示实体刷新与呈现路径（煎锅显示签名 diff 门、炉灶惰性掉落点、餐食 lore 单遍 meta + 版本判定缓存） | [report/perf/07](report/perf/07-r7-display-refresh.md) | 稳态每煎锅每 tick 省 N 次 clone+setItemStack 元数据包；版本解析消除实测 **57~75ns/次**；0 回归（含基准本地复刻件协议说明） |
 | R8 | 烹饪锅 GUI 会话每 tick 路径（槽位先比后克隆 ×13、空闲快路径 3→1 次调度提交、无变化不刷新） | [report/perf/08](report/perf/08-r8-pot-session-tick.md) | 打开态稳态每锅每 tick 省最多 13 次 ItemStack.clone 与 2 次调度提交；看守组 6 行全部持平，0 回归 |
+| R9 | 全量回归 + 累计汇总（1.2.1 原始 vs R8 产物，6 组 × 两侧各 2 样本） | [report/perf/09](report/perf/09-r9-full-regression.md) | 累计 **31 项提升 / 0 回归**（1.07x~1498.8x）+ 1 项 R2 既有有界权衡；服务端绑定路径调用消除逐轮论证 |
 
 基准框架与协议见 `benchmark/`（分组独立 JVM、多样本最小值聚合、噪声带规则），操作规范见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
 
