@@ -32,6 +32,8 @@ public final class BenchSuite {
             dev.tako.papersdelight.common.TickBatchBench.run(results);
             dev.tako.papersdelight.config.ConfigGetOrBench.run(results);
             dev.tako.papersdelight.heat.HeatSourceBench.run(results);
+            dev.tako.papersdelight.cookingpot.PotTickBench.run(results);
+            dev.tako.papersdelight.util.TextParseBench.run(results);
         } else {
             switch (group) {
                 case "recipe" -> {
@@ -42,6 +44,8 @@ public final class BenchSuite {
                 case "common" -> dev.tako.papersdelight.common.TickBatchBench.run(results);
                 case "config" -> dev.tako.papersdelight.config.ConfigGetOrBench.run(results);
                 case "heat" -> dev.tako.papersdelight.heat.HeatSourceBench.run(results);
+                case "container" -> dev.tako.papersdelight.cookingpot.PotTickBench.run(results);
+                case "text" -> dev.tako.papersdelight.util.TextParseBench.run(results);
                 default -> throw new IllegalArgumentException("unknown group: " + group);
             }
         }

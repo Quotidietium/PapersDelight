@@ -8,15 +8,24 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
-import java.util.regex.Pattern;
 
 public final class TextUtil {
 
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacySection();
     private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
 
-    private static final Pattern MINI_MESSAGE_DETECT = Pattern.compile("<[a-zA-Z#][^>]*>");
+    /**
+     * 解析结果缓存：输入字符串 → 已解析 Component。
+     * 仅在本次调用未发生 PAPI 替换（resolved == text）时启用——此时输出是
+     * 输入字符串的纯函数；adventure Component 不可变，共享实例安全。
+     * 解析不依赖任何配置（无需失效），条目上限 8192 防动态字符串无界增长。
+     */
+    private static final ConcurrentHashMap<String, Component> PARSE_CACHE = new ConcurrentHashMap<>();
+    private static final int PARSE_CACHE_MAX = 8192;
+    private static final AtomicInteger PARSE_CACHE_COUNT = new AtomicInteger();
 
     private static volatile BooleanSupplier papiAvailable = () -> false;
 
@@ -47,7 +56,21 @@ public final class TextUtil {
             resolved = PlaceholderAPI.setPlaceholders(player, text);
         }
 
-        if (MINI_MESSAGE_DETECT.matcher(resolved).find()) {
+        if (resolved == text) {
+            Component cached = PARSE_CACHE.get(resolved);
+            if (cached != null) return cached;
+            Component parsed = parseUncached(resolved);
+            if (PARSE_CACHE_COUNT.get() < PARSE_CACHE_MAX
+                    && PARSE_CACHE.putIfAbsent(resolved, parsed) == null) {
+                PARSE_CACHE_COUNT.incrementAndGet();
+            }
+            return parsed;
+        }
+        return parseUncached(resolved);
+    }
+
+    private static Component parseUncached(String resolved) {
+        if (hasMiniMessageTag(resolved)) {
             try {
                 return MINI_MESSAGE.deserialize(resolved);
             } catch (Exception ignored) {
@@ -55,6 +78,23 @@ public final class TextUtil {
         }
 
         return LEGACY.deserialize(resolved.replace("&", "§"));
+    }
+
+    /** 与 MINI_MESSAGE_DETECT（&lt;[a-zA-Z#][^&gt;]*&gt;）语义一致的零分配扫描 */
+    static boolean hasMiniMessageTag(String s) {
+        int len = s.length();
+        for (int i = 0; i < len; i++) {
+            if (s.charAt(i) != '<') continue;
+            int j = i + 1;
+            if (j >= len) return false;
+            char n = s.charAt(j);
+            if (!((n >= 'a' && n <= 'z') || (n >= 'A' && n <= 'Z') || n == '#')) continue;
+            for (int k = j + 1; k < len; k++) {
+                if (s.charAt(k) == '>') return true;
+            }
+            return false;
+        }
+        return false;
     }
 
     public static Component parse(CommandSender sender, String text) {

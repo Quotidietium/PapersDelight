@@ -106,6 +106,15 @@ def main() -> int:
             f"| {speedup:.3f}x | {verdict} |"
         )
 
+    # 候选侧独有的基准（如候选轮新增 API 的基准；基线 jar 无对应方法，无法测量）
+    for name in cand:
+        if name.endswith("::samples") or name in base:
+            continue
+        lines.append(
+            f"| {name} | {'目标' if is_target(name) else '看守'} | (新增) | {cand[name]['nsPerOp']:.1f} "
+            f"| - | 候选侧新增基准，无基线可比 |"
+        )
+
     for name in base:
         if name.endswith("::samples"):
             continue

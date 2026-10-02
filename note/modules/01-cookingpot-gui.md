@@ -119,7 +119,7 @@ graph TD
 
 ## 2. 类与函数目录
 
-### 2.1 CookingPotManager（`cookingpot/CookingPotManager.java`，1640 行）
+### 2.1 CookingPotManager（`cookingpot/CookingPotManager.java`，1649 行）
 
 **职责**：模块核心。持有锅位置追踪、玩家会话（GUI 打开状态）、tick 烹饪循环、漏斗自动化、爆炸/破坏掉落、区块加载卸载持久化、GUI 内容渲染与图标缓存。
 **继承/接口**：`final class CookingPotManager implements Listener`（Bukkit 事件监听器，共 11 个 @EventHandler）。
@@ -130,129 +130,129 @@ graph TD
 | 方法 | 签名 | 行号 | 行为说明 |
 | --- | --- | --- | --- |
 | 构造器 | CookingPotManager(JavaPlugin, RecipeManager) | 107 | 注入插件与配方管理器；写静态单例 instance；加载 CookingPotConfig；创建 carriedMealKey/carriedContainerKey |
-| shutdown | void shutdown() | 116 | 关服清理：清空粒子、追踪、缓存、全部会话集合 |
-| reload | void reload() | 126 | 重载：清空粒子与图标缓存，重新加载 CookingPotConfig |
-| markPlaced | void markPlaced(Location) | 134 | 标记「刚放置」，区域调度 2 tick 后自动移除（交互去抖） |
-| activatePot | void activatePot(Block) | 140 | 位置加入 trackedLocations |
-| initPotLater | void initPotLater(Block) | 144 | 延迟 1 tick 调 updateAutomaticSupport（放置后自检支撑） |
-| isRecentlyPlaced | boolean isRecentlyPlaced(Location) | 148 | 是否处于放置去抖窗口 |
-| hasPersistedData | boolean hasPersistedData(Block) | 152 | 被追踪或存在控制器（判断手持锅方块是否为二次放置） |
-| getController | CookingPotBlockEntityController getController(Block) | 156 | Bukkit Block → CE BlockEntity → 控制器；异常吞掉返回 null |
-| getController | private CookingPotBlockEntityController getController(BlockEntity) | 168 | 经 `be.controller.let` 借出控制器（ControllerRef 回填） |
-| ControllerRef | private static final class | 179 | let 回调引用载体，set 方法在 181 |
-| openSession | CookingPotData openSession(Block, Player) | 184 | 建会话：读控制器数据、登记 playerSessions/activeSessions；旧锅会话 handoffSession；顶掉同锅其他玩家（清其输出槽并异步 closeInventory）；代数自增 |
-| handoffSession | private void handoffSession(Location, CookingSession) | 223 | 玩家换锅：实体调度关旧菜单 → 读 EditableSnapshot → 区域调度写回并释放；owner 无效走保守释放 |
-| stopCooking | void stopCooking(Block) | 260 | 移除会话并把数据写回控制器 |
-| stopCookingIfOwner | void stopCookingIfOwner(Block, Player) | 270 | 仅会话所有者执行 stopCooking |
-| isSessionOwner | boolean isSessionOwner(Block, Player) | 281 | 会话存在且 UUID 匹配 |
-| getSessionData | CookingPotData getSessionData(Block) | 286 | 返回会话数据，无会话返回 null |
-| isPlayerCooking | boolean isPlayerCooking(Player) | 291 | 会话存在且 data.isCooking |
-| syncFromInventory | void syncFromInventory(Block, Inventory) | 296 | 无会话时把 GUI 可编辑槽同步进控制器数据（配方书翻页等场景） |
-| startCooking | boolean startCooking(Player, Inventory) | 304 | 找到会话并 syncEditableSlots；真正烹饪由 tick 判定 |
-| cancelCooking | boolean cancelCooking(Player, Inventory) | 311 | 恒返回 false 的占位实现 |
-| takeFinalOutputToCursor | boolean takeFinalOutputToCursor(Player, InventoryClickEvent) | 315 | FINAL_OUTPUT 槽取成品到光标：会话 invalidate → 克隆输出并清槽 → awardStoredExperience → fromData 写回 → refreshInventory → setCursor → recordCook 统计 |
-| recordCook | private static void recordCook(Player, ItemStack) | 332 | StatsManager 记录 COOKING_POT_COOK（CE 物品标识 + 数量） |
-| tryServeHeldContainer | boolean tryServeHeldContainer(Player, Block, ItemStack) | 340 | 徒手持容器取餐：容器匹配 recipeContainer → 克隆 1 份 waitingOutput → 扣 waitingOutput 与手持（创造免扣）→ recordCook → giveOrDrop → fromData → refreshOpenSession → 取餐音效（详见 3.3） |
-| toggleSupport | boolean toggleSupport(Block) | 366 | 潜行空手切换支撑腿：support 2 ↔（托盘源 1 / 无 0），播放灯笼放置音 |
-| populateInventory | void populateInventory(Inventory, CookingPotData) | 375 | 刷新食材槽、等待输出渲染、餐具槽、最终输出槽、进度指示 |
-| renderedWaitingOutput | private ItemStack renderedWaitingOutput(CookingPotData) | 389 | 生成带「盛装于 X」lore、堆叠上限 64 的等待输出图标（源/容器一致则复用渲染缓存） |
-| hasProgress | static boolean hasProgress(int, int) | 414 | cookTime 与 cookTimeTotal 均 > 0 |
-| updateHeatIndicator | void updateHeatIndicator(Inventory, Block) | 418 | 以 isHeated 刷新 STATUS 槽（公开重载） |
-| updateHeatIndicator | private void updateHeatIndicator(Inventory, boolean) | 422 | 写热图标（heatIcons computeIfAbsent 缓存） |
-| buildHeatIcon | private ItemStack buildHeatIcon(String) | 427 | ConfigManager.buildGuiItem 构造 heated/unheated 图标（语言键 + 图片字体） |
-| updateProgressIndicator | void updateProgressIndicator(Inventory, CookingPotData) | 436 | 无进度写空白边框图标；有进度算 pct → 22 级 stage，按「烹饪/冷却 + 百分比」键取 progressIcons 缓存写入 PROGRESS[0] |
-| buildProgressIcon | private static ItemStack buildProgressIcon(boolean, int) | 455 | 纸质图标 + 百分比名 + cook/cool lore + CustomModelData 325001+stage |
-| onBlockPlace | @EventHandler(ignoreCancelled=true) void onBlockPlace(BlockPlaceEvent) | 469 | 监听方块放置：markPlaced + trackedLocations + updateAutomaticSupport；区域调度 1 tick 后跑一次 processHoppers；从手中物品 PDC 恢复 carriedMeal/carriedContainer 到控制器（状态锅迁移） |
+| shutdown | void shutdown() | 120 | 关服清理：清空粒子、追踪、缓存、全部会话集合 |
+| reload | void reload() | 130 | 重载：清空粒子与图标缓存，重新加载 CookingPotConfig |
+| markPlaced | void markPlaced(Location) | 138 | 标记「刚放置」，区域调度 2 tick 后自动移除（交互去抖） |
+| activatePot | void activatePot(Block) | 144 | 位置加入 trackedLocations |
+| initPotLater | void initPotLater(Block) | 148 | 延迟 1 tick 调 updateAutomaticSupport（放置后自检支撑） |
+| isRecentlyPlaced | boolean isRecentlyPlaced(Location) | 152 | 是否处于放置去抖窗口 |
+| hasPersistedData | boolean hasPersistedData(Block) | 156 | 被追踪或存在控制器（判断手持锅方块是否为二次放置） |
+| getController | CookingPotBlockEntityController getController(Block) | 160 | Bukkit Block → CE BlockEntity → 控制器；异常吞掉返回 null |
+| getController | private CookingPotBlockEntityController getController(BlockEntity) | 172 | 经 `be.controller.let` 借出控制器（ControllerRef 回填） |
+| ControllerRef | private static final class | 183 | let 回调引用载体，set 方法在 181 |
+| openSession | CookingPotData openSession(Block, Player) | 188 | 建会话：读控制器数据、登记 playerSessions/activeSessions；旧锅会话 handoffSession；顶掉同锅其他玩家（清其输出槽并异步 closeInventory）；代数自增 |
+| handoffSession | private void handoffSession(Location, CookingSession) | 227 | 玩家换锅：实体调度关旧菜单 → 读 EditableSnapshot → 区域调度写回并释放；owner 无效走保守释放 |
+| stopCooking | void stopCooking(Block) | 264 | 移除会话并把数据写回控制器 |
+| stopCookingIfOwner | void stopCookingIfOwner(Block, Player) | 274 | 仅会话所有者执行 stopCooking |
+| isSessionOwner | boolean isSessionOwner(Block, Player) | 285 | 会话存在且 UUID 匹配 |
+| getSessionData | CookingPotData getSessionData(Block) | 290 | 返回会话数据，无会话返回 null |
+| isPlayerCooking | boolean isPlayerCooking(Player) | 295 | 会话存在且 data.isCooking |
+| syncFromInventory | void syncFromInventory(Block, Inventory) | 300 | 无会话时把 GUI 可编辑槽同步进控制器数据（配方书翻页等场景） |
+| startCooking | boolean startCooking(Player, Inventory) | 308 | 找到会话并 syncEditableSlots；真正烹饪由 tick 判定 |
+| cancelCooking | boolean cancelCooking(Player, Inventory) | 315 | 恒返回 false 的占位实现 |
+| takeFinalOutputToCursor | boolean takeFinalOutputToCursor(Player, InventoryClickEvent) | 319 | FINAL_OUTPUT 槽取成品到光标：会话 invalidate → 克隆输出并清槽 → awardStoredExperience → fromData 写回 → refreshInventory → setCursor → recordCook 统计 |
+| recordCook | private static void recordCook(Player, ItemStack) | 336 | StatsManager 记录 COOKING_POT_COOK（CE 物品标识 + 数量） |
+| tryServeHeldContainer | boolean tryServeHeldContainer(Player, Block, ItemStack) | 344 | 徒手持容器取餐：容器匹配 recipeContainer → 克隆 1 份 waitingOutput → 扣 waitingOutput 与手持（创造免扣）→ recordCook → giveOrDrop → fromData → refreshOpenSession → 取餐音效（详见 3.3） |
+| toggleSupport | boolean toggleSupport(Block) | 370 | 潜行空手切换支撑腿：support 2 ↔（托盘源 1 / 无 0），播放灯笼放置音 |
+| populateInventory | void populateInventory(Inventory, CookingPotData) | 379 | 刷新食材槽、等待输出渲染、餐具槽、最终输出槽、进度指示 |
+| renderedWaitingOutput | private ItemStack renderedWaitingOutput(CookingPotData) | 393 | 生成带「盛装于 X」lore、堆叠上限 64 的等待输出图标（源/容器一致则复用渲染缓存） |
+| hasProgress | static boolean hasProgress(int, int) | 418 | cookTime 与 cookTimeTotal 均 > 0 |
+| updateHeatIndicator | void updateHeatIndicator(Inventory, Block) | 422 | 以 isHeated 刷新 STATUS 槽（公开重载） |
+| updateHeatIndicator | private void updateHeatIndicator(Inventory, boolean) | 426 | 写热图标（heatIcons computeIfAbsent 缓存） |
+| buildHeatIcon | private ItemStack buildHeatIcon(String) | 431 | ConfigManager.buildGuiItem 构造 heated/unheated 图标（语言键 + 图片字体） |
+| updateProgressIndicator | void updateProgressIndicator(Inventory, CookingPotData) | 440 | 无进度写空白边框图标；有进度算 pct → 22 级 stage，按「烹饪/冷却 + 百分比」键取 progressIcons 缓存写入 PROGRESS[0] |
+| buildProgressIcon | private static ItemStack buildProgressIcon(boolean, int) | 459 | 纸质图标 + 百分比名 + cook/cool lore + CustomModelData 325001+stage |
+| onBlockPlace | @EventHandler(ignoreCancelled=true) void onBlockPlace(BlockPlaceEvent) | 473 | 监听方块放置：markPlaced + trackedLocations + updateAutomaticSupport；区域调度 1 tick 后跑一次 processHoppers；从手中物品 PDC 恢复 carriedMeal/carriedContainer 到控制器（状态锅迁移） |
 | handlePotInteract | InteractionResult handlePotInteract(Player, Block) | 497 | 右键总入口：ProtectionGate 权限 → 潜行空手 toggleSupport → 持容器 tryServeHeldContainer → recentlyPlaced/同 ID 手持防误开 → MenuManager.openMenu("cooking_pot", closeFromOwner) → openSession → populateInventory + 进度 + 热图标（详见 3.2） |
-| closeFromOwner | private void closeFromOwner(Player, Block, Inventory) | 540 | openMenu 的 onClose 回调：构造 CookingPotMenuCloseFlow.Scheduler 适配器（entity/region 调度 + retired 回退），交给 captureAndPersist：快照写回 applyEditableSnapshot → releaseSession，失败走 stageRetiredPending/conservativeRelease |
-| stageRetiredPending | private void stageRetiredPending(Location, CookingSession, EditableSnapshot) | 586 | 实体退休（玩家失效/插件禁用）时挂起待持久化快照 |
-| registerPending | private PendingUnload registerPending(Location, CookingSession, EditableSnapshot, boolean) | 591 | sessionStateLock 下以自增 token 登记/复用 PendingUnload，写 session.unloadGeneration |
-| isCurrentSession | private boolean isCurrentSession(Location, CookingSession) | 607 | activeSessions 仍是该会话且 generation > 0 |
-| isCurrentSessionVersion | private boolean isCurrentSessionVersion(Location, CookingSession, long) | 611 | 会话当前且 operationVersion 未变（防并发写覆盖，GUI 点击即 invalidate） |
-| applyEditableSnapshot | private void applyEditableSnapshot(CookingSession, EditableSnapshot) | 615 | 快照食材/餐具克隆写回 session.data，再 fromData 持久化到控制器 |
-| releaseSession | private void releaseSession(Location, CookingSession) | 623 | activeSessions.remove(key, session) 成功则清 playerSessions |
-| submitCloseSnapshot | private void submitCloseSnapshot(Location, CookingSession, EditableSnapshot) | 627 | registerPending 后区域调度：双重校验（会话当前 + pending 一致 + token 一致）→ applyEditableSnapshot → 移除 pending → releaseSession；调度失败保留 pending |
-| retryPending | private void retryPending(Location, CookingSession) | 645 | 该会话存在挂起卸载时重试提交 |
-| submitPendingUnload | private void submitPendingUnload(Location, PendingUnload) | 652 | 与 submitCloseSnapshot 同体的通用提交（供 retry 复用） |
-| conservativeRelease | private void conservativeRelease(Location, CookingSession) | 668 | 保守路径：区域调度直接把 session.data 写回控制器后释放（不读 GUI 快照） |
-| onCookingPotInventoryClick | @EventHandler(priority=LOWEST) void onCookingPotInventoryClick(InventoryClickEvent) | 682 | 玩家点击烹饪锅 GUI（会话菜单）时 session.invalidate()，使在途异步任务作废 |
-| onCookingPotInventoryDrag | @EventHandler(priority=LOWEST) void onCookingPotInventoryDrag(InventoryDragEvent) | 691 | 拖拽同样 invalidate |
-| onCookingPotInventoryClose | @EventHandler(priority=LOWEST) void onCookingPotInventoryClose(InventoryCloseEvent) | 700 | 关闭时 invalidate |
-| onBlockBreak | @EventHandler(ignoreCancelled=true) void onBlockBreak(BlockBreakEvent) | 709 | 监听破坏：有会话 → 取消事件 + 异步关菜单 + submitCloseSnapshot（失败回滚重试）；无会话 → dropStatefulPot 掉落状态锅（成功则 setDropItems(false)）→ 清追踪/粒子/缓存 |
-| onBlockExplode | @EventHandler(priority=LOWEST, ignoreCancelled=true) void onBlockExplode(BlockExplodeEvent) | 754 | 方块爆炸：把锅从 blockList 摘除并 pendingExplosions.stage |
-| onEntityExplode | @EventHandler(priority=LOWEST, ignoreCancelled=true) void onEntityExplode(EntityExplodeEvent) | 759 | 实体爆炸同上 |
-| settleBlockExplosion | @EventHandler(priority=MONITOR) void settleBlockExplosion(BlockExplodeEvent) | 764 | MONITOR 结算：settleExplosion（爆炸半径按版本适配） |
-| settleEntityExplosion | @EventHandler(priority=MONITOR) void settleEntityExplosion(EntityExplodeEvent) | 769 | 实体爆炸 MONITOR 结算 |
-| stageExplosion | private void stageExplosion(Event, List<Block>) | 773 | 遍历爆炸方块：isCookingPotIdentity → 移出列表 → 暂存（避免 CE 方块被原版炸毁丢状态） |
-| settleExplosion | private void settleExplosion(Event, boolean, float) | 783 | drain 暂存：GUI 占用的锅跳过；其余按 ExplosionSettleFlow.survives 存活几率 dropStatefulPot 后 CraftEngineBlocks.remove |
-| explosionRadius | private float explosionRadius(BlockExplodeEvent) | 802 | 1.21 前后的爆炸半径计算（yield / explosionResult） |
-| explosionRadius | private float explosionRadius(EntityExplodeEvent) | 808 | 同上 |
-| onChunkLoad | @EventHandler void onChunkLoad(ChunkLoadEvent) | 815 | 区块加载 1 tick 后 retryPendingUnloads（补写挂起快照） |
-| onChunkUnload | @EventHandler void onChunkUnload(ChunkUnloadEvent) | 820 | 区块卸载：有会话 persistSessionBeforeUnload，否则清追踪/粒子/缓存 |
-| persistSessionBeforeUnload | private void persistSessionBeforeUnload(CookingSession) | 840 | 卸载前：实体调度读 GUI 快照 → registerPending → 区域任务写回 + 释放 + 清追踪/粒子；owner 失效走 conservativeRelease |
-| retryPendingUnloads | private void retryPendingUnloads(World, int, int) | 885 | 遍历 pendingUnloads，匹配区块且会话仍有效则区域调度重放写回 |
-| registerPot | void registerPot(CookingPotBlockEntityController) | 902 | CE onLoad 回调：位置入 trackedLocations |
-| forgetPot | void forgetPot(CookingPotBlockEntityController) | 907 | CE onUnload 回调：清配方缓存与粒子计数；方块为空气则取消追踪 |
-| locationOf | private static Location locationOf(CookingPotBlockEntityController) | 916 | CE 世界名 + BlockPos → Bukkit BlockLocation |
-| potTick | void potTick(CookingPotBlockEntityController, CEWorld, BlockPos) | 927 | tick 主循环（详见 3.1）：批处理到期判定、热缓存 10 pass、粒子节流播放、空闲早退、无会话路径（漏斗 + tickPot 批量回放）、有会话路径（实体调度同步 GUI → 区域调度推进 → 刷新 GUI） |
-| tickPot | private boolean tickPot(Location, Block, CookingPotData, CookingSession, boolean) | 1022 | 单次烹饪推进（详见 3.1/3.2）：配方缓存查找 → canCook → 加热 cookTime++/finishCooking 或冷却 cookTime-2 → 进度百分比 → moveMealToOutput |
-| updateAutomaticSupport | void updateAutomaticSupport(Block) | 1070 | support 非 2 时按 isTraySource 自动设 0/1（手动 2 不覆盖） |
-| processHoppers | private boolean processHoppers(Block, CookingPotData) | 1077 | 漏斗自动化（详见 3.4）：上方漏斗 moveOneIntoIngredients、四侧朝锅漏斗 moveOneIntoContainer、下方漏斗取 finalOutput |
-| moveOneIntoIngredients | private boolean moveOneIntoIngredients(Inventory, CookingPotData) | 1108 | 从漏斗库存移 1 个进首个空/可叠食材槽 |
-| moveOneIntoContainer | private boolean moveOneIntoContainer(Inventory, CookingPotData) | 1129 | 移 1 个进餐具槽（同类且未满才叠） |
-| resolveContainer | private String resolveContainer(CookingRecipe) | 1148 | 配方容器优先；否则取成品 CraftRemainder ID（containerFallbackCache 永久缓存，空串表无） |
-| finishCooking | private void finishCooking(Block, CookingPotData, CookingRecipe, CookingSession) | 1160 | 烹饪完成：createItem 成品 → 容量校验（waitingOutput 同类 ≤ 64）→ 叠加 waitingOutput → 记 recipeContainer → storedExperience 累积 → consumeIngredients → 复位 cookTime/progress → session.skipNextIngredientRead=true |
-| consumeIngredients | private void consumeIngredients(Block, CookingPotData) | 1178 | 每个非空食材扣 1，余料 ingredientRemainder → ejectRemainder 弹出 |
-| ingredientRemainder | private ItemStack ingredientRemainder(ItemStack) | 1189 | 原版桶类→BUCKET、汤类→BOWL、药水/瓶类→GLASS_BOTTLE；FD milk_bottle→瓶、tomato_sauce→碗 |
-| ejectRemainder | private void ejectRemainder(Block, ItemStack) | 1204 | 按 facing 四向速度弹射余料实体 |
-| moveMealToOutput | private boolean moveMealToOutput(CookingPotData) | 1215 | 上菜核心：waitingOutput → finalOutput。无容器直接按余量搬；有容器要求 utensil 与 recipeContainer 匹配，按 min（余量, 等待数, 餐具数）转移并消耗等量餐具；搬空清 recipeContainer |
-| canStoreMeal | private boolean canStoreMeal(CookingPotData, CookingRecipe) | 1247 | 成品可创建且 waitingOutput 为空或同类不超 64 |
-| syncOwnerGuiEditableSlots | private boolean syncOwnerGuiEditableSlots(CookingSession, CookingPotData) | 1255 | 会话玩家顶栏仍是本菜单时同步可编辑槽 |
-| syncEditableSlots | private boolean syncEditableSlots(CookingSession, CookingPotData, Inventory) | 1261 | GUI→数据回读食材/餐具；skipNextIngredientRead 时反向 refresh（finishCooking 后防止把旧 GUI 内容读回覆盖） |
-| refreshInventory | private void refreshInventory(Inventory, CookingPotData, CookingSession, boolean) | 1283 | 全量刷新：食材槽 + populateInventory + 热图标 |
-| refreshOpenSession | private void refreshOpenSession(Block, CookingPotData) | 1289 | 有打开会话则刷新其 GUI（取餐后等场景） |
-| refreshIngredientSlots | private static void refreshIngredientSlots(Inventory, CookingPotData) | 1296 | 数据→GUI 食材槽 |
-| refreshIngredientSlots | private static void refreshIngredientSlots(Inventory, CookingPotData, CookingSession) | 1302 | 上者 + 清 skipNextIngredientRead |
-| refreshSlot | private static void refreshSlot(Inventory, int, ItemStack) | 1307 | 写单槽（空写 null，否则 clone） |
-| writeSlot | private static void writeSlot(Inventory, int, ItemStack) | 1311 | 差异写入：itemsEqual 才 setItem（减少发包） |
-| itemTranslationKey | private String itemTranslationKey(ItemStack) | 1315 | CE 物品翻译键，回退原版 type 键 |
-| translAtable | private Component translAtable(String) | 1322 | 物品 ID → 灰色非斜体 translatable 组件 |
-| animationTick | private void animationTick(Block, boolean, CookingPotConfig) | 1335 | 加热粒子：20% 气泡、5% 白烟、1/10 概率沸腾音（有餐 boil_soup / 无餐 boil），音效经 shouldThrottleSound 节流 |
-| shouldThrottleSound | private boolean shouldThrottleSound(Block, CookingPotConfig) | 1354 | 依据同区块粒子任务数与阈值判定跳过音效 |
-| playSound | private void playSound(Block, SoundConfig) | 1360 | ConfigManager 音效：Folia 区域调度 / 非 Folia 主线程或全局调度，播放前检查区块已加载 |
-| playSound | private void playSound(Block, Sound, float, float) | 1377 | 原版 Sound 版本（同调度策略） |
-| playSound | private void playSound(Block, String, float, float) | 1394 | 字符串音效版本（同调度策略） |
-| forgetParticles | private void forgetParticles(Location) | 1411 | 移出粒子集合并下调区块计数 |
-| adjustChunkParticleCount | private void adjustChunkParticleCount(Location, int) | 1415 | 区块粒子任务计数增减，归零移除条目 |
-| countNearbyParticleTasks | private int countNearbyParticleTasks(Location) | 1426 | 读取同区块粒子任务数 |
-| chunkKey | private static long chunkKey(Location) | 1431 | 世界 UUID 低 16 位混入的区块 long 键 |
-| load | CookingPotData load(Block) | 1437 | 读控制器数据，无控制器返回空 CookingPotData |
-| save | void save(Block, CookingPotData) | 1442 | fromData 写回控制器并确保 trackedLocations |
-| remove | void remove(Block) | 1448 | 取消追踪并清配方缓存 |
-| isHeated | boolean isHeated(Block) | 1454 | 委托 HeatSourceService.isHeated |
-| isTraySource | boolean isTraySource(Block) | 1458 | 下方为托盘热源；或下方是导热体且再下方一格为托盘热源 |
-| isMatchingHeatSource | private boolean isMatchingHeatSource(Block, HeatSourceDef) | 1476 | 定义匹配且 checkLit（当前模块内无调用，保留给热源联动） |
-| matchesBlockDef | private boolean matchesBlockDef(Block, HeatSourceDef) | 1480 | 委托 HeatSourceService.matchesBlockDef |
-| isCookingPot | private boolean isCookingPot(Block) | 1484 | 存在控制器即锅 |
-| isCookingPotIdentity | private boolean isCookingPotIdentity(Block) | 1488 | potIdentity.isPotBehavior：CE 行为是 CookingPotBlockBehavior |
-| isCurrentCookingPot | private boolean isCurrentCookingPot(Block) | 1492 | 行为匹配且控制器存在（爆炸结算用） |
-| dropStatefulPot | private boolean dropStatefulPot(Block, CookingPotData, boolean, boolean) | 1496 | 掉落内容物（食材/餐具/成品/经验）；生成携带餐食的状态锅物品：MealLoreUtil 餐食 Lore + PDC 写入序列化 waitingOutput 与容器；无同 ID CE 物品时回退 FALLBACK_POT_ID 并告警；dropBlock=false（爆炸无掉落）时只掉内容物清经验 |
-| hasInput | private static boolean hasInput(CookingPotData) | 1528 | 任一食材非空 |
-| awardStoredExperience | private void awardStoredExperience(Player, CookingPotData) | 1533 | 在玩家位置释放存储经验 |
-| spawnStoredExperience | private void spawnStoredExperience(World, Location, CookingPotData) | 1537 | 小数部分按概率进位，生成 ExperienceOrb 并清零 storedExperience |
-| findSession | private CookingSession findSession(Player) | 1547 | playerSessions → activeSessions，校验所有者一致 |
-| findSessionLocation | Location findSessionLocation(Player) | 1555 | 玩家当前会话锅位置（供 GUI 层定位锅） |
-| openCookingPotInventory | private Inventory openCookingPotInventory(Player) | 1561 | 顶栏尺寸为 27 或 54 才视为锅 GUI |
-| giveOrDrop | private void giveOrDrop(Player, ItemStack) | 1568 | 优先进背包，溢出自然掉落 |
-| dropIfPresent | private static void dropIfPresent(World, Location, ItemStack) | 1573 | 非空自然掉落 |
-| take | private static ItemStack take(ItemStack) | 1577 | 空→null，否则 clone |
-| shrink | private static void shrink(ItemStack, int) | 1581 | 减数量，下限 0 |
-| isEmpty | private static boolean isEmpty(ItemStack) | 1585 | null 或 empty |
-| itemsEqual | private static boolean itemsEqual(ItemStack, ItemStack) | 1589 | 双方空等价；否则数量一致且 isSimilar |
-| blockKey | static Location blockKey(Block) | 1594 | 归一化方块 Location 键 |
-| blockKey | static Location blockKey(Location) | 1598 | toBlockLocation |
-| PendingUnload | private static final class PendingUnload | 1602 | 挂起卸载记录：session + snapshot + token（构造器 1606） |
-| CookingSession | private static final class CookingSession | 1613 | 会话：block/data/player/generation/menu + closeRequested/unloadGeneration/operationVersion(volatile)/skipNextIngredientRead；version() 1624；invalidate() 1628 使 operationVersion+1；构造器 1632 |
+| closeFromOwner | private void closeFromOwner(Player, Block, Inventory) | 544 | openMenu 的 onClose 回调：构造 CookingPotMenuCloseFlow.Scheduler 适配器（entity/region 调度 + retired 回退），交给 captureAndPersist：快照写回 applyEditableSnapshot → releaseSession，失败走 stageRetiredPending/conservativeRelease |
+| stageRetiredPending | private void stageRetiredPending(Location, CookingSession, EditableSnapshot) | 590 | 实体退休（玩家失效/插件禁用）时挂起待持久化快照 |
+| registerPending | private PendingUnload registerPending(Location, CookingSession, EditableSnapshot, boolean) | 595 | sessionStateLock 下以自增 token 登记/复用 PendingUnload，写 session.unloadGeneration |
+| isCurrentSession | private boolean isCurrentSession(Location, CookingSession) | 611 | activeSessions 仍是该会话且 generation > 0 |
+| isCurrentSessionVersion | private boolean isCurrentSessionVersion(Location, CookingSession, long) | 615 | 会话当前且 operationVersion 未变（防并发写覆盖，GUI 点击即 invalidate） |
+| applyEditableSnapshot | private void applyEditableSnapshot(CookingSession, EditableSnapshot) | 619 | 快照食材/餐具克隆写回 session.data，再 fromData 持久化到控制器 |
+| releaseSession | private void releaseSession(Location, CookingSession) | 627 | activeSessions.remove(key, session) 成功则清 playerSessions |
+| submitCloseSnapshot | private void submitCloseSnapshot(Location, CookingSession, EditableSnapshot) | 631 | registerPending 后区域调度：双重校验（会话当前 + pending 一致 + token 一致）→ applyEditableSnapshot → 移除 pending → releaseSession；调度失败保留 pending |
+| retryPending | private void retryPending(Location, CookingSession) | 649 | 该会话存在挂起卸载时重试提交 |
+| submitPendingUnload | private void submitPendingUnload(Location, PendingUnload) | 656 | 与 submitCloseSnapshot 同体的通用提交（供 retry 复用） |
+| conservativeRelease | private void conservativeRelease(Location, CookingSession) | 672 | 保守路径：区域调度直接把 session.data 写回控制器后释放（不读 GUI 快照） |
+| onCookingPotInventoryClick | @EventHandler(priority=LOWEST) void onCookingPotInventoryClick(InventoryClickEvent) | 686 | 玩家点击烹饪锅 GUI（会话菜单）时 session.invalidate()，使在途异步任务作废 |
+| onCookingPotInventoryDrag | @EventHandler(priority=LOWEST) void onCookingPotInventoryDrag(InventoryDragEvent) | 695 | 拖拽同样 invalidate |
+| onCookingPotInventoryClose | @EventHandler(priority=LOWEST) void onCookingPotInventoryClose(InventoryCloseEvent) | 704 | 关闭时 invalidate |
+| onBlockBreak | @EventHandler(ignoreCancelled=true) void onBlockBreak(BlockBreakEvent) | 713 | 监听破坏：有会话 → 取消事件 + 异步关菜单 + submitCloseSnapshot（失败回滚重试）；无会话 → dropStatefulPot 掉落状态锅（成功则 setDropItems(false)）→ 清追踪/粒子/缓存 |
+| onBlockExplode | @EventHandler(priority=LOWEST, ignoreCancelled=true) void onBlockExplode(BlockExplodeEvent) | 758 | 方块爆炸：把锅从 blockList 摘除并 pendingExplosions.stage |
+| onEntityExplode | @EventHandler(priority=LOWEST, ignoreCancelled=true) void onEntityExplode(EntityExplodeEvent) | 763 | 实体爆炸同上 |
+| settleBlockExplosion | @EventHandler(priority=MONITOR) void settleBlockExplosion(BlockExplodeEvent) | 768 | MONITOR 结算：settleExplosion（爆炸半径按版本适配） |
+| settleEntityExplosion | @EventHandler(priority=MONITOR) void settleEntityExplosion(EntityExplodeEvent) | 773 | 实体爆炸 MONITOR 结算 |
+| stageExplosion | private void stageExplosion(Event, List<Block>) | 777 | 遍历爆炸方块：isCookingPotIdentity → 移出列表 → 暂存（避免 CE 方块被原版炸毁丢状态） |
+| settleExplosion | private void settleExplosion(Event, boolean, float) | 787 | drain 暂存：GUI 占用的锅跳过；其余按 ExplosionSettleFlow.survives 存活几率 dropStatefulPot 后 CraftEngineBlocks.remove |
+| explosionRadius | private float explosionRadius(BlockExplodeEvent) | 806 | 1.21 前后的爆炸半径计算（yield / explosionResult） |
+| explosionRadius | private float explosionRadius(EntityExplodeEvent) | 812 | 同上 |
+| onChunkLoad | @EventHandler void onChunkLoad(ChunkLoadEvent) | 819 | 区块加载 1 tick 后 retryPendingUnloads（补写挂起快照） |
+| onChunkUnload | @EventHandler void onChunkUnload(ChunkUnloadEvent) | 824 | 区块卸载：有会话 persistSessionBeforeUnload，否则清追踪/粒子/缓存 |
+| persistSessionBeforeUnload | private void persistSessionBeforeUnload(CookingSession) | 844 | 卸载前：实体调度读 GUI 快照 → registerPending → 区域任务写回 + 释放 + 清追踪/粒子；owner 失效走 conservativeRelease |
+| retryPendingUnloads | private void retryPendingUnloads(World, int, int) | 889 | 遍历 pendingUnloads，匹配区块且会话仍有效则区域调度重放写回 |
+| registerPot | void registerPot(CookingPotBlockEntityController) | 906 | CE onLoad 回调：位置入 trackedLocations |
+| forgetPot | void forgetPot(CookingPotBlockEntityController) | 911 | CE onUnload 回调：清配方缓存与粒子计数；方块为空气则取消追踪 |
+| locationOf | private static Location locationOf(CookingPotBlockEntityController) | 920 | CE 世界名 + BlockPos → Bukkit BlockLocation |
+| potTick | void potTick(CookingPotBlockEntityController, CEWorld, BlockPos) | 931 | tick 主循环（详见 3.1）：批处理到期判定、热缓存 10 pass、粒子节流播放、空闲早退、无会话路径（漏斗 + tickPot 批量回放）、有会话路径（实体调度同步 GUI → 区域调度推进 → 刷新 GUI） |
+| tickPot | private boolean tickPot(Location, Block, CookingPotData, CookingSession, boolean) | 1030 | 单次烹饪推进（详见 3.1/3.2）：配方缓存查找 → canCook → 加热 cookTime++/finishCooking 或冷却 cookTime-2 → 进度百分比 → moveMealToOutput |
+| updateAutomaticSupport | void updateAutomaticSupport(Block) | 1078 | support 非 2 时按 isTraySource 自动设 0/1（手动 2 不覆盖）；R3 起由 potTick 挂到热源刷新同窗（每 10 个补偿 tick 一次），放置/交互事件路径仍即时 |
+| processHoppers | private boolean processHoppers(Block, CookingPotData) | 1085 | 漏斗自动化（详见 3.4）：上方漏斗 moveOneIntoIngredients、四侧朝锅漏斗 moveOneIntoContainer（静态数组 SIDE_HOPPER_FACES，R3 前为每次 List.of 组包）、下方漏斗取 finalOutput |
+| moveOneIntoIngredients | private boolean moveOneIntoIngredients(Inventory, CookingPotData) | 1116 | 从漏斗库存移 1 个进首个空/可叠食材槽 |
+| moveOneIntoContainer | private boolean moveOneIntoContainer(Inventory, CookingPotData) | 1137 | 移 1 个进餐具槽（同类且未满才叠） |
+| resolveContainer | private String resolveContainer(CookingRecipe) | 1156 | 配方容器优先；否则取成品 CraftRemainder ID（containerFallbackCache 永久缓存，空串表无） |
+| finishCooking | private void finishCooking(Block, CookingPotData, CookingRecipe, CookingSession) | 1168 | 烹饪完成：createItem 成品 → 容量校验（waitingOutput 同类 ≤ 64）→ 叠加 waitingOutput → 记 recipeContainer → storedExperience 累积 → consumeIngredients → 复位 cookTime/progress → session.skipNextIngredientRead=true |
+| consumeIngredients | private void consumeIngredients(Block, CookingPotData) | 1186 | 每个非空食材扣 1，余料 ingredientRemainder → ejectRemainder 弹出 |
+| ingredientRemainder | private ItemStack ingredientRemainder(ItemStack) | 1197 | 原版桶类→BUCKET、汤类→BOWL、药水/瓶类→GLASS_BOTTLE；FD milk_bottle→瓶、tomato_sauce→碗 |
+| ejectRemainder | private void ejectRemainder(Block, ItemStack) | 1212 | 按 facing 四向速度弹射余料实体 |
+| moveMealToOutput | private boolean moveMealToOutput(CookingPotData) | 1223 | 上菜核心：waitingOutput → finalOutput。无容器直接按余量搬；有容器要求 utensil 与 recipeContainer 匹配，按 min（余量, 等待数, 餐具数）转移并消耗等量餐具；搬空清 recipeContainer |
+| canStoreMeal | private boolean canStoreMeal(CookingPotData, CookingRecipe) | 1255 | 成品可创建且 waitingOutput 为空或同类不超 64；R3 起产物实例取自 RecipeManager.resultPrototype 共享只读原型（替代逐 tick CraftEngine createItem） |
+| syncOwnerGuiEditableSlots | private boolean syncOwnerGuiEditableSlots(CookingSession, CookingPotData) | 1264 | 会话玩家顶栏仍是本菜单时同步可编辑槽 |
+| syncEditableSlots | private boolean syncEditableSlots(CookingSession, CookingPotData, Inventory) | 1270 | GUI→数据回读食材/餐具；skipNextIngredientRead 时反向 refresh（finishCooking 后防止把旧 GUI 内容读回覆盖） |
+| refreshInventory | private void refreshInventory(Inventory, CookingPotData, CookingSession, boolean) | 1292 | 全量刷新：食材槽 + populateInventory + 热图标 |
+| refreshOpenSession | private void refreshOpenSession(Block, CookingPotData) | 1298 | 有打开会话则刷新其 GUI（取餐后等场景） |
+| refreshIngredientSlots | private static void refreshIngredientSlots(Inventory, CookingPotData) | 1305 | 数据→GUI 食材槽 |
+| refreshIngredientSlots | private static void refreshIngredientSlots(Inventory, CookingPotData, CookingSession) | 1311 | 上者 + 清 skipNextIngredientRead |
+| refreshSlot | private static void refreshSlot(Inventory, int, ItemStack) | 1316 | 写单槽（空写 null，否则 clone） |
+| writeSlot | private static void writeSlot(Inventory, int, ItemStack) | 1320 | 差异写入：itemsEqual 才 setItem（减少发包） |
+| itemTranslationKey | private String itemTranslationKey(ItemStack) | 1324 | CE 物品翻译键，回退原版 type 键 |
+| translAtable | private Component translAtable(String) | 1331 | 物品 ID → 灰色非斜体 translatable 组件 |
+| animationTick | private void animationTick(Block, boolean, CookingPotConfig) | 1344 | 加热粒子：20% 气泡、5% 白烟、1/10 概率沸腾音（有餐 boil_soup / 无餐 boil），音效经 shouldThrottleSound 节流 |
+| shouldThrottleSound | private boolean shouldThrottleSound(Block, CookingPotConfig) | 1363 | 依据同区块粒子任务数与阈值判定跳过音效 |
+| playSound | private void playSound(Block, SoundConfig) | 1369 | ConfigManager 音效：Folia 区域调度 / 非 Folia 主线程或全局调度，播放前检查区块已加载 |
+| playSound | private void playSound(Block, Sound, float, float) | 1386 | 原版 Sound 版本（同调度策略） |
+| playSound | private void playSound(Block, String, float, float) | 1403 | 字符串音效版本（同调度策略） |
+| forgetParticles | private void forgetParticles(Location) | 1420 | 移出粒子集合并下调区块计数 |
+| adjustChunkParticleCount | private void adjustChunkParticleCount(Location, int) | 1424 | 区块粒子任务计数增减，归零移除条目 |
+| countNearbyParticleTasks | private int countNearbyParticleTasks(Location) | 1435 | 读取同区块粒子任务数 |
+| chunkKey | private static long chunkKey(Location) | 1440 | 世界 UUID 低 16 位混入的区块 long 键 |
+| load | CookingPotData load(Block) | 1446 | 读控制器数据，无控制器返回空 CookingPotData |
+| save | void save(Block, CookingPotData) | 1451 | fromData 写回控制器并确保 trackedLocations |
+| remove | void remove(Block) | 1457 | 取消追踪并清配方缓存 |
+| isHeated | boolean isHeated(Block) | 1463 | 委托 HeatSourceService.isHeated |
+| isTraySource | boolean isTraySource(Block) | 1467 | 下方为托盘热源；或下方是导热体且再下方一格为托盘热源 |
+| isMatchingHeatSource | private boolean isMatchingHeatSource(Block, HeatSourceDef) | 1485 | 定义匹配且 checkLit（当前模块内无调用，保留给热源联动） |
+| matchesBlockDef | private boolean matchesBlockDef(Block, HeatSourceDef) | 1489 | 委托 HeatSourceService.matchesBlockDef |
+| isCookingPot | private boolean isCookingPot(Block) | 1493 | 存在控制器即锅 |
+| isCookingPotIdentity | private boolean isCookingPotIdentity(Block) | 1497 | potIdentity.isPotBehavior：CE 行为是 CookingPotBlockBehavior |
+| isCurrentCookingPot | private boolean isCurrentCookingPot(Block) | 1501 | 行为匹配且控制器存在（爆炸结算用） |
+| dropStatefulPot | private boolean dropStatefulPot(Block, CookingPotData, boolean, boolean) | 1505 | 掉落内容物（食材/餐具/成品/经验）；生成携带餐食的状态锅物品：MealLoreUtil 餐食 Lore + PDC 写入序列化 waitingOutput 与容器；无同 ID CE 物品时回退 FALLBACK_POT_ID 并告警；dropBlock=false（爆炸无掉落）时只掉内容物清经验 |
+| hasInput | private static boolean hasInput(CookingPotData) | 1537 | 任一食材非空 |
+| awardStoredExperience | private void awardStoredExperience(Player, CookingPotData) | 1542 | 在玩家位置释放存储经验 |
+| spawnStoredExperience | private void spawnStoredExperience(World, Location, CookingPotData) | 1546 | 小数部分按概率进位，生成 ExperienceOrb 并清零 storedExperience |
+| findSession | private CookingSession findSession(Player) | 1556 | playerSessions → activeSessions，校验所有者一致 |
+| findSessionLocation | Location findSessionLocation(Player) | 1564 | 玩家当前会话锅位置（供 GUI 层定位锅） |
+| openCookingPotInventory | private Inventory openCookingPotInventory(Player) | 1570 | 顶栏尺寸为 27 或 54 才视为锅 GUI |
+| giveOrDrop | private void giveOrDrop(Player, ItemStack) | 1577 | 优先进背包，溢出自然掉落 |
+| dropIfPresent | private static void dropIfPresent(World, Location, ItemStack) | 1582 | 非空自然掉落 |
+| take | private static ItemStack take(ItemStack) | 1586 | 空→null，否则 clone |
+| shrink | private static void shrink(ItemStack, int) | 1590 | 减数量，下限 0 |
+| isEmpty | private static boolean isEmpty(ItemStack) | 1594 | null 或 empty |
+| itemsEqual | private static boolean itemsEqual(ItemStack, ItemStack) | 1598 | 双方空等价；否则数量一致且 isSimilar |
+| blockKey | static Location blockKey(Block) | 1603 | 归一化方块 Location 键 |
+| blockKey | static Location blockKey(Location) | 1607 | toBlockLocation |
+| PendingUnload | private static final class PendingUnload | 1611 | 挂起卸载记录：session + snapshot + token |
+| CookingSession | private static final class CookingSession | 1622 | 会话：block/data/player/generation/menu + closeRequested/unloadGeneration/operationVersion(volatile)/skipNextIngredientRead |
 
 #### 核心方法调用链展开
 
@@ -262,9 +262,9 @@ graph TD
   - 热缓存：`heatTicks<=0` 时重算 `isHeated` 并重置 10 pass（944-948）
   - 粒子：加热则 `particlePots` 计数 + `ctrl.particleTicks += elapsed`，达 `particleIntervalTicks` 时经 `ParticleVisibility.hasNearbyViewer` + `ParticleThrottle.shouldSkip(countNearbyParticleTasks)` 双重节流后 `animationTick`（951-962）；未加热 `forgetParticles`（964）
   - 空闲早退：无会话且无任何内容且上方非漏斗 → 返回（967-969）
-  - 无会话路径（972-984）：`ctrl.toData()` 快照 → `for i<elapsed` 循环回放：`(++ctrl.hopperTicks % 8)==0` 时 `processHoppers`（978），`tickPot`（980）→ 有变更 `ctrl.fromData`
+  - 无会话路径：`ctrl.toData()` 快照 → `for i<elapsed` 循环回放：`(++ctrl.hopperTicks % 8)==0` 时 `processHoppers`，`tickPot` → 有变更 `ctrl.fromData`；支撑属性维护挂热源刷新窗（heatRefreshed，每 10 个补偿 tick 一次，R3 节流）
   - 有会话路径（986-1019）：记录 `session.version()` → 实体调度 `hopperTick`：`syncOwnerGuiEditableSlots` 回读玩家 GUI（990）→ 区域调度 `regionStep`：`for i<elapsed` 回放（漏斗 + tickPot）（994-997）→ `ctrl.fromData`（998）→ 实体调度 `refresh` 刷新菜单（999-1009）。全程以 `isCurrentSessionVersion` 双重校验（989、992），GUI 一被点击即作废在途任务
-- **烹饪推进 `tickPot`（:1022）**：`hasInput`（1024）→ 缓存查找 `recipeCache.get(loc, ingredients, recipeManager.snapshotEpoch())`（1027-1029），Miss 则 `recipeManager.findMatch`（1032）+ `recipeCache.put`（1033）→ `canCook = recipe != null && canStoreMeal`（1036）→ 加热且可烹饪：置 isCooking/结果/容器/cookTimeTotal，`cookTime++`，达 total 调 `finishCooking`（1039-1050）；否则冷却 `cookTime -= 2`（1051-1058）→ 进度百分比变更标记（1060-1065）→ `moveMealToOutput`（1066）
+- **烹饪推进 `tickPot`（:1025）**：`hasInput` → 缓存查找 `recipeCache.get(loc, ingredients, recipeManager.snapshotEpoch())`，Miss 则 `recipeManager.findMatch` + `recipeCache.put`→ `canCook = recipe != null && canStoreMeal`（1036）→ 加热且可烹饪：置 isCooking/结果/容器/cookTimeTotal，`cookTime++`，达 total 调 `finishCooking`（1039-1050）；否则冷却 `cookTime -= 2`（1051-1058）→ 进度百分比变更标记（1060-1065）→ `moveMealToOutput`（1066）
 - **完成 `finishCooking`（:1160）** → `consumeIngredients`（:1178）→ `ingredientRemainder`（:1189）→ `ejectRemainder`（:1204）
 - **上菜 `moveMealToOutput`（:1215）** 与 **取餐 `tryServeHeldContainer`（:340）**、**取成品 `takeFinalOutputToCursor`（:315）** 详见 3.3
 - **漏斗 `processHoppers`（:1077）** → `moveOneIntoIngredients`（:1108）/ `moveOneIntoContainer`（:1129），详见 3.4
@@ -383,7 +383,7 @@ graph TD
 | --- | --- | --- | --- |
 | 构造器 | private CookingPotLayout() | 5 | 禁实例化（纯常量类，无方法） |
 
-### 2.7 CookingPotRecipeCache（`cookingpot/CookingPotRecipeCache.java`，67 行）
+### 2.7 CookingPotRecipeCache（`cookingpot/CookingPotRecipeCache.java`，78 行）
 
 **职责**：按锅位置缓存「当前食材组合 → 匹配配方」的结果，配合 RecipeManager.snapshotEpoch 纪元在配方重载后自动失效；未命中也用哨兵缓存（负缓存）。
 **继承/接口**：`public final class`；内嵌 `sealed interface CacheResult`。
@@ -396,11 +396,13 @@ graph TD
 | CacheResult.Hit | record Hit(CookingRecipe) | 23 | 命中记录（recipe 可 null 表示已知无匹配） |
 | CacheResult.Miss | enum Miss implements CacheResult | 24 | 未命中单例 |
 | Entry | private record Entry(long fingerprint, long epoch, CookingRecipe) | 30 | 缓存条目：指纹 + 纪元 + 配方 |
-| get | CacheResult get(Location, ItemStack[], long) | 34 | 三重校验（条目存在 / epoch 相同 / 指纹相同）才命中；哨兵转 null 配方 |
-| put | void put(Location, ItemStack[], long, CookingRecipe) | 43 | 写入（null 配方存哨兵） |
-| remove | void remove(Location) | 49 | 移除单锅缓存 |
-| clear | void clear() | 53 | 清空（关服/重载） |
-| fingerprint | static long fingerprint(ItemStack[]) | 57 | 6 槽指纹：Material.ordinal*127 + amount + 槽位*8191 滚动哈希 |
+| get | CacheResult get(Location, ItemStack[], long) | 34 | 计算指纹后委托 lookup（R3 拆分，零行为差异） |
+| lookup | CacheResult lookup(Location, long, long) | 39 | 三重校验（条目存在 / epoch 相同 / 指纹相同）才命中；哨兵转 null 配方；包私有（指纹预算好的入口，基准直测缓存门成本） |
+| put | void put(Location, ItemStack[], long, CookingRecipe) | 48 | 计算指纹后委托 insert |
+| insert | void insert(Location, long, long, CookingRecipe) | 54 | 写入（null 配方存哨兵）；包私有 |
+| remove | void remove(Location) | 60 | 移除单锅缓存 |
+| clear | void clear() | 64 | 清空（关服/重载） |
+| fingerprint | static long fingerprint(ItemStack[]) | 68 | 6 槽指纹：Material.ordinal*127 + amount + 槽位*8191 滚动哈希（已知局限：不区分同基材质的不同 CE 自定义物品——预存在行为，见报告 03） |
 
 ### 2.8 CookingPotDropFlow（`cookingpot/CookingPotDropFlow.java`，36 行）
 

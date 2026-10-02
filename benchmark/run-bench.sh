@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 运行基准测试套件。用法:
 #   bash benchmark/run-bench.sh <label> [group]
-#     group ∈ {recipe, common, config, heat}；缺省则逐组各起独立 JVM 全量运行。
+#     group ∈ {recipe, common, config, heat, container, text}；缺省则逐组各起独立 JVM 全量运行。
 # 前置:
 #   ./gradlew benchmarkClasses benchmarkRuntime
 #   mkdir -p benchmark/lib/<label> && cp <plugin.jar> benchmark/lib/<label>/plugin.jar
@@ -44,7 +44,7 @@ run_group() {
 if [ -n "$GROUP" ]; then
   run_group "$GROUP"
 else
-  for g in recipe common config heat; do
+  for g in recipe common config heat container text; do
     run_group "$g"
   done
 fi

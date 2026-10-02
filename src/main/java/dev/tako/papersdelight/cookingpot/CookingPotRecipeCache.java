@@ -32,17 +32,28 @@ public final class CookingPotRecipeCache {
     private final Map<Location, Entry> entries = new ConcurrentHashMap<>();
 
     public CacheResult get(Location loc, ItemStack[] inputs, long currentEpoch) {
+        return lookup(loc, fingerprint(inputs), currentEpoch);
+    }
+
+    /** 指纹已由调用方算好的查询入口（get 的零行为差异拆分，基准可直接度量缓存门成本） */
+    CacheResult lookup(Location loc, long fingerprint, long currentEpoch) {
         Entry entry = entries.get(loc);
         if (entry == null) return CacheResult.MISS;
         if (entry.epoch != currentEpoch) return CacheResult.MISS;
-        if (entry.fingerprint != fingerprint(inputs)) return CacheResult.MISS;
+        if (entry.fingerprint != fingerprint) return CacheResult.MISS;
         CookingRecipe r = entry.recipe;
         return CacheResult.hit(r == NO_MATCH_SENTINEL ? null : r);
     }
 
     public void put(Location loc, ItemStack[] inputs, long currentEpoch,
                     @Nullable CookingRecipe recipe) {
-        entries.put(loc, new Entry(fingerprint(inputs), currentEpoch,
+        insert(loc, fingerprint(inputs), currentEpoch, recipe);
+    }
+
+    /** 指纹已由调用方算好的写入入口（put 的零行为差异拆分） */
+    void insert(Location loc, long fingerprint, long currentEpoch,
+                @Nullable CookingRecipe recipe) {
+        entries.put(loc, new Entry(fingerprint, currentEpoch,
                 recipe == null ? NO_MATCH_SENTINEL : recipe));
     }
 

@@ -64,6 +64,10 @@ public final class CookingPotManager implements Listener {
 
     private static final int WAITING_OUTPUT_CAPACITY = 64;
 
+    /** 侧面漏斗扫描方向：静态数组，processHoppers 每 8 个补偿 tick 扫一遍，免每次分配 List */
+    private static final BlockFace[] SIDE_HOPPER_FACES = {
+            BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST};
+
     static volatile CookingPotManager instance;
 
     private static final CCScheduler SCHEDULER = CCScheduler.getInstance();
@@ -945,6 +949,7 @@ public final class CookingPotManager implements Listener {
             ctrl.heated(isHeated(block));
             ctrl.heatTicks(HEAT_CACHE_TICKS);
         }
+        boolean heatRefreshed = ctrl.heatTicks() == HEAT_CACHE_TICKS;
         ctrl.heatTicks(ctrl.heatTicks() - 1);
         boolean heated = ctrl.heated();
         CookingPotConfig cfg = config;
@@ -967,7 +972,10 @@ public final class CookingPotManager implements Listener {
         CookingSession session = activeSessions.get(location);
         boolean idle = session == null && !ctrl.hasAnyIngredient() && !ctrl.isCooking() && !ctrl.hasWaitingOutput();
         if (idle && block.getRelative(BlockFace.UP).getType() != Material.HOPPER) return;
-        updateAutomaticSupport(block);
+        // support 是纯视觉方块属性（托盘支撑形态），仅玩家 toggleSupport 与本维护写入器读写，
+        // 无玩法逻辑消费——挂到热源刷新同窗（每 HEAT_CACHE_TICKS 个补偿 tick 一次），
+        // 免去每 tick 的 CE 属性读取 + isTraySource 热源定义扫描；变更延迟 ≤ 该窗口。
+        if (heatRefreshed) updateAutomaticSupport(block);
 
         if (session == null) {
             CookingPotData data = ctrl.toData();
@@ -1082,7 +1090,7 @@ public final class CookingPotManager implements Listener {
             changed |= moveOneIntoIngredients(container.getInventory(), data);
         }
 
-        for (BlockFace face : List.of(BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST)) {
+        for (BlockFace face : SIDE_HOPPER_FACES) {
             Block side = block.getRelative(face);
             if (side.getType() != Material.HOPPER || !(side.getState() instanceof Container container)
                     || !(side.getBlockData() instanceof Directional directional)) continue;
@@ -1245,7 +1253,8 @@ public final class CookingPotManager implements Listener {
     }
 
     private boolean canStoreMeal(CookingPotData data, CookingRecipe recipe) {
-        ItemStack result = CraftEngineUtil.createItem(recipe.result, recipe.resultCount);
+        // 原型缓存：逐 tick 判定复用共享只读产物实例，免走 CraftEngine 构建管线
+        ItemStack result = recipeManager.resultPrototype(recipe);
         if (result == null || result.isEmpty()) return false;
         if (isEmpty(data.waitingOutput)) return true;
         if (!data.waitingOutput.isSimilar(result)) return false;

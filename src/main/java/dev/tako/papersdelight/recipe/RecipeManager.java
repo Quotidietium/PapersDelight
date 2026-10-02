@@ -1,5 +1,6 @@
 package dev.tako.papersdelight.recipe;
 
+import dev.tako.papersdelight.ce.CraftEngineUtil;
 import dev.tako.papersdelight.jug.recipe.JugFluidEmptyingRecipe;
 import dev.tako.papersdelight.jug.recipe.JugFluidFillingRecipe;
 import dev.tako.papersdelight.jug.recipe.JugSoakingRecipe;
@@ -8,6 +9,7 @@ import org.bukkit.inventory.ItemStack;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -19,6 +21,26 @@ public final class RecipeManager {
             new AtomicReference<>(RecipeSnapshot.create(List.of()));
     private static final AtomicReference<JugRecipes> JUG_RECIPES =
             new AtomicReference<>(JugRecipes.empty());
+
+    /**
+     * 产物原型缓存：配方结果物品的共享只读实例，供烹饪锅等容器的逐 tick
+     * 判定（isSimilar/数量比较）复用，替代每 tick 走一次 CraftEngine
+     * buildBukkitItem 构建管线。快照替换与恢复时整体失效；
+     * 调用方不得修改返回的实例。
+     */
+    private static final ConcurrentHashMap<CookingRecipe, Prototype> RESULT_PROTOTYPES =
+            new ConcurrentHashMap<>();
+
+    private record Prototype(ItemStack stack) {}
+
+    public ItemStack resultPrototype(CookingRecipe recipe) {
+        Prototype proto = RESULT_PROTOTYPES.get(recipe);
+        if (proto == null) {
+            proto = new Prototype(CraftEngineUtil.createItem(recipe.result, recipe.resultCount));
+            RESULT_PROTOTYPES.put(recipe, proto);
+        }
+        return proto.stack();
+    }
 
     public long snapshotEpoch() {
         return SNAPSHOT.get().epoch();
@@ -52,6 +74,7 @@ public final class RecipeManager {
         RuntimeSnapshot state = Objects.requireNonNull(snapshot, "snapshot");
         SNAPSHOT.set(state.snapshot);
         JUG_RECIPES.set(state.jugRecipes);
+        RESULT_PROTOTYPES.clear();
     }
 
     public static final class RuntimeSnapshot {
@@ -66,6 +89,7 @@ public final class RecipeManager {
 
     void replaceSnapshot(List<CookingRecipe> recipes) {
         SNAPSHOT.set(RecipeSnapshot.create(recipes));
+        RESULT_PROTOTYPES.clear();
     }
 
     public void publishRuntimeConfig(List<CookingRecipe> recipes) {

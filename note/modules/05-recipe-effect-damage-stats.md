@@ -69,32 +69,35 @@ graph LR
 
 ## 2. 类与函数目录（35 个类全覆盖）
 
-### 2.1 RecipeManager（`recipe/RecipeManager.java`，146 行）
+### 2.1 RecipeManager（`recipe/RecipeManager.java`，187 行）
 
 **职责**：烹饪配方的运行时仓库。以 AtomicReference 持有不可变 `RecipeSnapshot`（配方列表 + Trie + 代次号），提供原子发布、Trie 优先查询、线性回退匹配、运行时状态快照/恢复，以及 Jug（水壶）三类流体配方的独立发布通道。
 **继承/接口**：无继承，`final` 类。
-**关键字段**：`EPOCH_COUNTER`（L16，静态 AtomicLong 代次计数）；`SNAPSHOT`（L18，AtomicReference of RecipeSnapshot）；`JUG_RECIPES`（L20，AtomicReference of JugRecipes）。
+**关键字段**：`EPOCH_COUNTER`（L22，静态 AtomicLong 代次计数）；`SNAPSHOT`（L24，AtomicReference of RecipeSnapshot）；`JUG_RECIPES`（L26，AtomicReference of JugRecipes）；`RESULT_PROTOTYPES`（L31，ConcurrentHashMap&lt;CookingRecipe,Prototype&gt; 产物原型缓存，R3 新增——replaceSnapshot/restoreRuntimeState 整体失效，值经 Prototype 包装以允许 null）.
 
 **方法清单表**：
 
 | 方法 | 签名 | 行号 | 行为说明 |
 | --- | --- | --- | --- |
-| snapshotEpoch | `public long snapshotEpoch()` | 23 | 返回当前快照代次号，用于诊断/一致性校验 |
-| findMatch | `public CookingRecipe findMatch(ItemStack[] inputs)` | 27 | 取当前快照：先 Trie 查找，miss 后逐配方线性回退 `matches`，无命中返回 null |
-| count | `public int count()` | 38 | 当前快照配方数量 |
-| recipes | `public List<CookingRecipe> recipes()` | 42 | 返回当前快照的不可变配方列表 |
-| captureRuntimeState | `public RuntimeSnapshot captureRuntimeState()` | 46 | 同时捕获配方快照与 Jug 配方引用，供 reload 前备份 |
-| restoreRuntimeState | `public void restoreRuntimeState(RuntimeSnapshot snapshot)` | 51 | 非空校验后整体回写两个 AtomicReference，用于 reload 失败回滚 |
-| replaceSnapshot | `void replaceSnapshot(List<CookingRecipe> recipes)` | 67 | 包私有：以新列表构建 RecipeSnapshot 并原子替换 SNAPSHOT |
-| publishRuntimeConfig | `public void publishRuntimeConfig(List<CookingRecipe> recipes)` | 71 | registration 模块配置解析完成后的正式发布入口，内部调 replaceSnapshot |
-| publishJugRecipes | `public void publishJugRecipes(List<JugFluidFillingRecipe>, List<JugFluidEmptyingRecipe>, List<JugSoakingRecipe>)` | 75 | 原子发布 Jug 装液/排液/浸泡三类配方（List.copyOf 防御性拷贝） |
-| jugRecipes | `public JugRecipes jugRecipes()` | 83 | 读取当前 Jug 配方集合 |
-| matches | `private boolean matches(CookingRecipe recipe, ItemStack[] inputs)` | 103 | 线性回退匹配：非空物品数须等于原料数；used 数组标记下为每个 IngredientDef 贪心寻找第一个未占用且匹配的槽位 |
-| matchesIngredient | `public boolean matchesIngredient(ItemStack stack, IngredientDef def)` | 127 | 单原料判定：委托 `def.matcher().matches(stack, DefaultItemMatcherResolver.INSTANCE)` |
-| getTagItems | `public static List<String> getTagItems(String tagName)` | 131 | 以空标签表调 TagExpander.expand（空表下无定义可展开，保留的兼容入口） |
-| RuntimeSnapshot 构造器 | `private RuntimeSnapshot(RecipeSnapshot, JugRecipes)` | 61 | 嵌套不可变快照类（L57-65），两个字段均 Objects.requireNonNull |
-| JugRecipes 紧凑构造器 | `public JugRecipes{...}` | 92 | 三列表 null 归一为空表并 List.copyOf；`empty()`（L98）提供空单例 |
-| RecipeSnapshot.create | `private static RecipeSnapshot create(List<CookingRecipe>)` | 138 | 嵌套私有记录（L135-144）：拷贝列表→新建 Trie 逐个 insert→epoch 自增，三者原子绑定 |
+| snapshotEpoch | `public long snapshotEpoch()` | 45 | 返回当前快照代次号，用于诊断/一致性校验 |
+| resultPrototype | `public ItemStack resultPrototype(CookingRecipe recipe)` | 36 | R3 新增：产物共享只读原型（CHM 缓存 createItem 结果；调用方禁止修改实例），供烹饪锅逐 tick canStoreMeal 判定 |
+| findMatch | `public CookingRecipe findMatch(ItemStack[] inputs)` | 49 | 取当前快照：先 Trie 查找，miss 后逐配方线性回退 `matches`，无命中返回 null |
+| count | `public int count()` | 60 | 当前快照配方数量 |
+| recipes | `public List<CookingRecipe> recipes()` | 64 | 返回当前快照的不可变配方列表 |
+| captureRuntimeState | `public RuntimeSnapshot captureRuntimeState()` | 68 | 同时捕获配方快照与 Jug 配方引用，供 reload 前备份 |
+| restoreRuntimeState | `public void restoreRuntimeState(RuntimeSnapshot snapshot)` | 73 | 非空校验后整体回写两个 AtomicReference 并清空产物原型缓存（R3），用于 reload 失败回滚 |
+| replaceSnapshot | `void replaceSnapshot(List<CookingRecipe> recipes)` | 90 | 包私有：以新列表构建 RecipeSnapshot 并原子替换 SNAPSHOT；清空产物原型缓存（R3） |
+| publishRuntimeConfig | `public void publishRuntimeConfig(List<CookingRecipe> recipes)` | 95 | registration 模块配置解析完成后的正式发布入口，内部调 replaceSnapshot |
+| publishJugRecipes | `public void publishJugRecipes(List<JugFluidFillingRecipe>, List<JugFluidEmptyingRecipe>, List<JugSoakingRecipe>)` | 99 | 原子发布 Jug 装液/排液/浸泡三类配方（List.copyOf 防御性拷贝） |
+| jugRecipes | `public JugRecipes jugRecipes()` | 107 | 读取当前 Jug 配方集合 |
+| matches | `private boolean matches(CookingRecipe recipe, ItemStack[] inputs)` | 127 | 线性回退匹配：非空物品数须等于原料数；≤64 槽走 matchesMasked 位掩码（R1，零分配），否则 used 数组版；均为每个 IngredientDef 贪心取第一个可用槽（保持初版语义） |
+| matchesMasked | `private boolean matchesMasked(CookingRecipe, ItemStack[], long usedMask, int defIndex)` | 143 | R1 新增：long 位掩码递归 |
+| matchesUsed | `private boolean matchesUsed(CookingRecipe, ItemStack[], boolean[], int)` | 155 | &gt;64 槽回退路径 |
+| matchesIngredient | `public boolean matchesIngredient(ItemStack stack, IngredientDef def)` | 168 | 单原料判定：委托 `def.matcher().matches(stack, DefaultItemMatcherResolver.INSTANCE)` |
+| getTagItems | `public static List<String> getTagItems(String tagName)` | 172 | 以空标签表调 TagExpander.expand（空表下无定义可展开，保留的兼容入口） |
+| RuntimeSnapshot 构造器 | `private RuntimeSnapshot(RecipeSnapshot, JugRecipes)` | 84 | 嵌套不可变快照类（L80-88），两个字段均 Objects.requireNonNull |
+| JugRecipes 紧凑构造器 | `public JugRecipes{...}` | 116 | 三列表 null 归一为空表并 List.copyOf；`empty()` 提供空单例 |
+| RecipeSnapshot.create | `private static RecipeSnapshot create(List<CookingRecipe>)` | 179 | 嵌套私有记录（L176-188）：拷贝列表→新建 Trie 逐个 insert→epoch 自增，三者原子绑定 |
 
 **注册/查询流程详解**：主类 `PapersDelight.java` L198 实例化 RecipeManager；registration 模块解析配方 YAML 后调用 `publishRuntimeConfig` 一次性构建 Trie 并发布（写少读多，读写均无锁）；烹饪锅/煎锅/砧板管理器在玩家放入物品时调 `findMatch` 拿到一致快照做匹配。reload 时 `captureRuntimeState` → 重解析 → 失败则 `restoreRuntimeState` 回滚，保证线上服务不中断。
 
