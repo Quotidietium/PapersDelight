@@ -91,8 +91,9 @@ tasks {
         archiveFileName.set("PapersDelight-${project.version}.jar")
         System.getenv("BUILD_FOLDER")?.let { destinationDirectory.set(file(it)) }
         relocate("org.jetbrains", "dev.tako.libs.org.jetbrains")
-        mergeServiceFiles()
-        exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
+        relocate("org.intellij", "dev.tako.libs.org.intellij")
+        relocate("cn.chengzhimeow.ccscheduler", "dev.tako.libs.cn.chengzhimeow.ccscheduler")
+        exclude("META-INF/**")
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     }
 
