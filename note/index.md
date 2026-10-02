@@ -44,6 +44,7 @@ Java 21 · Gradle Kotlin DSL · Paper API 1.21 · Folia 区域调度（CC-Schedu
 | R8 | 烹饪锅 GUI 会话每 tick 路径（槽位先比后克隆 ×13、空闲快路径 3→1 次调度提交、无变化不刷新） | [report/perf/08](report/perf/08-r8-pot-session-tick.md) | 打开态稳态每锅每 tick 省最多 13 次 ItemStack.clone 与 2 次调度提交；看守组 6 行全部持平，0 回归 |
 | R9 | 全量回归 + 累计汇总（1.2.1 原始 vs R8 产物，6 组 × 两侧各 2 样本） | [report/perf/09](report/perf/09-r9-full-regression.md) | 累计 **31 项提升 / 0 回归**（1.07x~1498.8x）+ 1 项 R2 既有有界权衡；服务端绑定路径调用消除逐轮论证 |
 | R10 | 效果标题秒桶缓存 + isItem 零分配比较 | [report/perf/10](report/perf/10-r10-title-idcompare.md) | 受效果玩家标题构建 20 次/秒 → 1 次/秒；CE id 比较实测 **~1.8x（省 5-7ns + 一次分配）**，1 万次种子模糊证等价；0 回归 |
+| R11 | 覆盖审计（活动收尾）：全部周期/热路径与优化状态矩阵 | [report/perf/11](report/perf/11-coverage-audit.md) | 12 条周期路径 + 10 类事件热路径全覆盖，主动放弃候选附红线论证；约束下已无可证实收益的剩余候选 |
 
 基准框架与协议见 `benchmark/`（分组独立 JVM、多样本最小值聚合、噪声带规则），操作规范见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
 
