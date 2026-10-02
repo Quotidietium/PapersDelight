@@ -1,3 +1,4 @@
+import org.gradle.api.tasks.bundling.Jar
 import xyz.jpenilla.runpaper.task.RunServer
 import java.util.zip.ZipFile
 
@@ -164,40 +165,25 @@ tasks {
         pluginJars(shadowJar.flatMap { it.archiveFile })
     }
 
-    // 细粒度交付打包（见 CONTRIBUTING.md §3）
+    // 细粒度交付打包（见 CONTRIBUTING.md §3）——全部配置期引用，兼容 configuration cache
     register<Copy>("dist") {
         group = "distribution"
         description = "汇总 shadowJar 产物、NMS-Bridge 模块 jar 与基准运行时到 dist/"
-        dependsOn(shadowJar, benchmarkSource.classesTaskName, "benchmarkRuntime")
+        dependsOn(shadowJar, benchmarkSource.classesTaskName, "benchmarkRuntime",
+            ":NMS-Bridge:api:jar", ":NMS-Bridge:jar",
+            ":NMS-Bridge:v1_21_1:jar", ":NMS-Bridge:v1_21_4:jar",
+            ":NMS-Bridge:v1_21_10:jar", ":NMS-Bridge:v1_21_11:jar")
         from(shadowJar.flatMap { it.archiveFile })
         into(rootProject.layout.projectDirectory.dir("dist"))
-        doLast {
-            val modulesDir = rootProject.layout.projectDirectory.dir("dist/modules")
-            modulesDir.asFile.mkdirs()
-            val benchDir = rootProject.layout.projectDirectory.dir("dist/benchmark")
-            benchDir.asFile.mkdirs()
-            project.copy {
-                from(project(":NMS-Bridge:api").tasks.named("jar"))
-                from(project(":NMS-Bridge").tasks.named("jar"))
-                from(project(":NMS-Bridge:v1_21_1").tasks.named("jar"))
-                from(project(":NMS-Bridge:v1_21_4").tasks.named("jar"))
-                from(project(":NMS-Bridge:v1_21_10").tasks.named("jar"))
-                from(project(":NMS-Bridge:v1_21_11").tasks.named("jar"))
-                into(modulesDir)
-            }
-            project.copy {
-                from(rootProject.file("benchmark/lib/runtime"))
-                into(benchDir.dir("lib"))
-            }
-            project.copy {
-                from(rootProject.file("benchmark/run-bench.sh"), rootProject.file("benchmark/compare.py"))
-                into(benchDir)
-            }
-            project.copy {
-                from(benchmarkSource.output.classesDirs)
-                into(benchDir.dir("classes"))
-            }
-        }
+        from(project(":NMS-Bridge:api").tasks.named<Jar>("jar").flatMap { it.archiveFile }) { into("modules") }
+        from(project(":NMS-Bridge").tasks.named<Jar>("jar").flatMap { it.archiveFile }) { into("modules") }
+        from(project(":NMS-Bridge:v1_21_1").tasks.named<Jar>("jar").flatMap { it.archiveFile }) { into("modules") }
+        from(project(":NMS-Bridge:v1_21_4").tasks.named<Jar>("jar").flatMap { it.archiveFile }) { into("modules") }
+        from(project(":NMS-Bridge:v1_21_10").tasks.named<Jar>("jar").flatMap { it.archiveFile }) { into("modules") }
+        from(project(":NMS-Bridge:v1_21_11").tasks.named<Jar>("jar").flatMap { it.archiveFile }) { into("modules") }
+        from(rootProject.file("benchmark/lib/runtime")) { into("benchmark/lib") }
+        from(listOf(rootProject.file("benchmark/run-bench.sh"), rootProject.file("benchmark/compare.py"))) { into("benchmark") }
+        from(benchmarkSource.output.classesDirs) { into("benchmark/classes") }
     }
 
     build {
