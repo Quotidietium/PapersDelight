@@ -25,7 +25,12 @@ public final class TagExpander {
             Predicate<String> tagPredicate,
             Predicate<String> itemPredicate
     ) {
-        return anyMatch0(tags, normalizeTag(rootTag), tagPredicate, itemPredicate, new HashSet<>());
+        // 空 tags 的等价快路径：anyMatch0 对空 map 只会做 tagPredicate.test(normalize(root))
+        // （tags.get 恒为 null、无嵌套递归、visited 首次 add 恒成功），语义完全一致。
+        if (tags.isEmpty()) {
+            return tagPredicate.test(normalizeTag(rootTag));
+        }
+        return anyMatch0(tags, normalizeTag(rootTag), tagPredicate, itemPredicate, new HashSet<>(Math.max(2, tags.size())));
     }
 
     private static void expandInto(Map<String, List<String>> tags, String tagName, List<String> out, Set<String> visited) {

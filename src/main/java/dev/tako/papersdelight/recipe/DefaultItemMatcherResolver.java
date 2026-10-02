@@ -38,12 +38,9 @@ public final class DefaultItemMatcherResolver implements ItemMatcherResolver<Ite
     @Override
     public boolean matchesTag(ItemStack item, String tagId) {
         if (item == null || item.isEmpty() || tagId == null || tagId.isBlank()) return false;
-        return TagExpander.anyMatch(
-                Map.of(),
-                tagId,
-                nestedTag -> matchesRuntimeTag(item, nestedTag),
-                nestedItem -> matchesItem(item, nestedItem)
-        );
+        // 空 tags 下 TagExpander.anyMatch 等价于 matchesRuntimeTag(normalize(tag))，
+        // 直接调用省去 lambda 捕获与递归机器（toLowerCase 对已是小写的输入零分配）。
+        return matchesRuntimeTag(item, tagId.toLowerCase(java.util.Locale.ROOT));
     }
 
     @Override
@@ -60,18 +57,26 @@ public final class DefaultItemMatcherResolver implements ItemMatcherResolver<Ite
         }
     }
 
+    /** 标签 id → 解析后键的进程级缓存：键对象不可变，条目数受配置内标签种类约束。 */
+    private static final java.util.concurrent.ConcurrentHashMap<String, NamespacedKey> NS_KEYS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.concurrent.ConcurrentHashMap<String, Key> CE_KEYS = new java.util.concurrent.ConcurrentHashMap<>();
+
     private static boolean matchesRuntimeTag(ItemStack item, String tagId) {
         try {
             var definition = CraftEngineItems.byItemStack(item);
-            if (definition != null && definition.is(Key.of(tagId))) return true;
+            if (definition != null && definition.is(ceKey(tagId))) return true;
             if (CraftEngineItems.isCustomItem(item)) return false;
         } catch (Throwable ignored) {
 
         }
 
-        NamespacedKey key = NamespacedKey.fromString(tagId);
+        NamespacedKey key = NS_KEYS.computeIfAbsent(tagId, NamespacedKey::fromString);
         if (key == null) return false;
         Tag<Material> tag = Bukkit.getTag(Tag.REGISTRY_ITEMS, key, Material.class);
         return tag != null && tag.isTagged(item.getType());
+    }
+
+    private static Key ceKey(String tagId) {
+        return CE_KEYS.computeIfAbsent(tagId, Key::of);
     }
 }

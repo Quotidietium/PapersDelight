@@ -45,3 +45,9 @@ zkm/ZKM.jar
 
 # Local pack conversion scripts
 /tools/
+
+# Perf optimization workflow artifacts (see CONTRIBUTING.md)
+dist/
+benchmark/classes/
+benchmark/lib/
+benchmark/results/

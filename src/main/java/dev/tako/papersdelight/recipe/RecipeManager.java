@@ -108,20 +108,37 @@ public final class RecipeManager {
         }
         if (nonEmptyCount != recipe.ingredients.size()) return false;
 
-        boolean[] used = new boolean[inputs.length];
-        for (IngredientDef ingredient : recipe.ingredients) {
-            boolean found = false;
-            for (int i = 0; i < inputs.length; i++) {
-                if (used[i] || inputs[i] == null || inputs[i].isEmpty()) continue;
-                if (matchesIngredient(inputs[i], ingredient)) {
-                    used[i] = true;
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) return false;
+        if (inputs.length <= 64) {
+            // 位掩码版：零分配（烹饪锅等容器输入槽远小于 64）。
+            // 保持初版贪心语义：每个原料取第一个可用匹配槽，不回溯重试。
+            return matchesMasked(recipe, inputs, 0L, 0);
         }
-        return true;
+        return matchesUsed(recipe, inputs, new boolean[inputs.length], 0);
+    }
+
+    private boolean matchesMasked(CookingRecipe recipe, ItemStack[] inputs, long usedMask, int defIndex) {
+        if (defIndex == recipe.ingredients.size()) return true;
+        IngredientDef ingredient = recipe.ingredients.get(defIndex);
+        for (int i = 0; i < inputs.length; i++) {
+            if ((usedMask >>> i & 1L) != 0L || inputs[i] == null || inputs[i].isEmpty()) continue;
+            if (matchesIngredient(inputs[i], ingredient)) {
+                return matchesMasked(recipe, inputs, usedMask | (1L << i), defIndex + 1);
+            }
+        }
+        return false;
+    }
+
+    private boolean matchesUsed(CookingRecipe recipe, ItemStack[] inputs, boolean[] used, int defIndex) {
+        if (defIndex == recipe.ingredients.size()) return true;
+        IngredientDef ingredient = recipe.ingredients.get(defIndex);
+        for (int i = 0; i < inputs.length; i++) {
+            if (used[i] || inputs[i] == null || inputs[i].isEmpty()) continue;
+            if (matchesIngredient(inputs[i], ingredient)) {
+                used[i] = true;
+                return matchesUsed(recipe, inputs, used, defIndex + 1);
+            }
+        }
+        return false;
     }
 
     public boolean matchesIngredient(ItemStack stack, IngredientDef def) {
