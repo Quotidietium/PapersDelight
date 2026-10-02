@@ -25,6 +25,12 @@
 
 ## 3. 细粒度构建 dist
 
+- **每次代码更新之后必须编译打包并构建 dist（项目规范，用户指令固化）**：完成一轮改动（含优化轮、修复、功能变更）后，依次执行
+  ```
+  ./gradlew shadowJar   # 增量编译 + 打包被测 fat jar
+  ./gradlew dist        # 细粒度汇总 fat jar + NMS-Bridge 各模块 + 基准运行时到 dist/
+  ```
+  未执行这两步不得视为该轮完成；`dist/` 产物与 `build/libs` 的 jar 哈希一致才算打包生效（可用 `sha256sum` 抽验）。
 - 常规验证：`./gradlew shadowJar` —— Gradle 增量编译，只重编受影响子项目。
 - 交付打包：`./gradlew dist` —— 把最终 fat jar、各 NMS-Bridge 模块 jar 与基准运行时统一汇总到项目根 `dist/` 目录：
   ```

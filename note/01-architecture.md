@@ -326,7 +326,7 @@ graph LR
 | `client` | 3 | `PapersDelightClient` 62 行 | 同上 |
 | `config` | 5 | `ConfigManager` 783 行 | 同上 |
 | `registration`（含 `config` 子包） | 14 | `PapersDelightRecipeParser` 340 行 | 同上 |
-| `ce` / `compat` / `support` | 4 | `CraftEngineUtil` 387 行 | 同上 |
+| `ce` / `compat` / `support` | 4 | `CraftEngineUtil` 394 行 | 同上 |
 | `command` | 1 | `PapersDelightCommand` 332 行 | 同上 |
 | 根包 `Metrics` | 1 | `Metrics` 905 行（bStats 内嵌） | 同上 |
 | `cookingpot` | 10 | `CookingPotManager` 1649 行 | [modules/01](modules/01-cookingpot-gui.md) |

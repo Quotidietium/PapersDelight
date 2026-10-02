@@ -709,7 +709,7 @@ flowchart TD
 | loadAll | `@Override public void loadAll()` | L58 | 同上 |
 | clearConfigs | `@Override public void clearConfigs()` | L63 | 无条件清 configStorage/pendingConfigSections（基类字段），checkDuplicated 时清 id 路径映射 |
 
-### 2.29 CraftEngineUtil（`src/main/java/dev/tako/papersdelight/ce/CraftEngineUtil.java`，387 行）
+### 2.29 CraftEngineUtil（`src/main/java/dev/tako/papersdelight/ce/CraftEngineUtil.java`，394 行）
 **职责**：CraftEngine API 的静态工具箱：CE 安装/就绪探测、自定义方块状态读写、物品 id 匹配与构建、合成余料解析，全部方法 try-catch 包裹容错。
 **继承/接口**：final class，私有构造。
 **关键字段**：`BASE_MATERIAL_CACHE`（static final ConcurrentHashMap&lt;String, Material&gt;，CE 方块→原版材质缓存）；`MATERIAL_CACHE`（static final ConcurrentHashMap&lt;String, Optional&lt;Material&gt;&gt;，id→原版材质解析缓存，R6 引入；纯函数缓存永不失效，`Optional.empty` 作未命中哨兵，`MATERIAL_CACHE_MAX`=8192 上限 + `MATERIAL_CACHE_COUNT` 近似计数，超限退化为直算不缓存）。
@@ -738,15 +738,15 @@ flowchart TD
 | getCustomBlockIntProperty | `static int getCustomBlockIntProperty(Block, String, int fallback)` L196 字符串属性 parseInt |
 | getCustomBlockProperty | `static String getCustomBlockProperty(Block, String)` L202 读任意属性值字符串 |
 | setCustomBlockProperty | `static boolean setCustomBlockProperty(Block, String, String)` L216 按 valueByName 找值并 with+place 更新状态 |
-| isItem | `static boolean isItem(ItemStack, String id)` L243 `#` 前缀：CE 物品标签或原版 Tag；CE 自定义物品比 id/value（R10 起零分配等价改写：裸 value 快路径先行，全限定比较手工拆 namespace/value，免去每次 key.toString() 拼接分配，等价性经 1 万次种子模糊证明）；否则原版 Material 匹配 |
+| isItem | `static boolean isItem(ItemStack, String id)` L237 `#` 前缀：CE 物品标签或原版 Tag；CE 自定义物品比 id/value（R10 起零分配等价改写：裸 value 快路径先行，全限定比较手工拆 namespace/value，免去每次 key.toString() 拼接分配，等价性经 1 万次种子模糊证明）；否则原版 Material 匹配 |
 | getCustomItemId | `static String getCustomItemId(ItemStack)` L270 非自定义或空返回 null |
 | matchesAnyItem | `static boolean matchesAnyItem(ItemStack, Collection<String>)` L278 逐 id isItem 短路 |
 | getItemIdentifier | `static String getItemIdentifier(ItemStack)` L286 CE id 优先否则原版 key |
 | getCraftRemainderId | `static String getCraftRemainderId(String itemId)` L293 非 minecraft 命名空间先查 CE craftRemainder（含 Item.byId 校验与 count>0）；再回退原版 craftingRemainingItem |
 | createItem | `static ItemStack createItem(String id, int amount)` L335 amount 钳 ≥1；带命名空间且非 minecraft 走 CE byId buildBukkitItem；否则原版材质构造 |
-| materialFromId | `static Material materialFromId(String id)` | L355 | R6 起进程级 CHM 读穿缓存（命中 Optional 哨兵区分空值与未命中）；未命中经 resolveMaterial 直算并回填（受 8192 上限约束） |
-| resolveMaterial | `private static Material resolveMaterial(String id)` | L368 | 剥 minecraft: 前缀（toLowerCase 判前缀、substring 保原大小写）后 Material.valueOf，含冒号或未知名返回 null |
-| parseInt | `private static int parseInt(String, int fallback)` | L380 | NumberFormatException 回退 |
+| materialFromId | `static Material materialFromId(String id)` L362 R6 起进程级 CHM 读穿缓存（命中 Optional 哨兵区分空值与未命中）；未命中经 resolveMaterial 直算并回填（受 8192 上限约束） |
+| resolveMaterial | `private static Material resolveMaterial(String id)` L375 剥 minecraft: 前缀（toLowerCase 判前缀、substring 保原大小写）后 Material.valueOf，含冒号或未知名返回 null |
+| parseInt | `private static int parseInt(String, int fallback)` L387 NumberFormatException 回退 |
 
 ### 2.30 CraftEngineVersionGate（`src/main/java/dev/tako/papersdelight/compat/CraftEngineVersionGate.java`，84 行）
 **职责**：CE 最低版本门禁：从 papersdelight-build.properties 读编译期写入的 craftengine.version 并做数值比较。

@@ -45,6 +45,7 @@ Java 21 · Gradle Kotlin DSL · Paper API 1.21 · Folia 区域调度（CC-Schedu
 | R9 | 全量回归 + 累计汇总（1.2.1 原始 vs R8 产物，6 组 × 两侧各 2 样本） | [report/perf/09](report/perf/09-r9-full-regression.md) | 累计 **31 项提升 / 0 回归**（1.07x~1498.8x）+ 1 项 R2 既有有界权衡；服务端绑定路径调用消除逐轮论证 |
 | R10 | 效果标题秒桶缓存 + isItem 零分配比较 | [report/perf/10](report/perf/10-r10-title-idcompare.md) | 受效果玩家标题构建 20 次/秒 → 1 次/秒；CE id 比较实测 **~1.8x（省 5-7ns + 一次分配）**，1 万次种子模糊证等价；0 回归 |
 | R11 | 覆盖审计（活动收尾）：全部周期/热路径与优化状态矩阵 | [report/perf/11](report/perf/11-coverage-audit.md) | 12 条周期路径 + 10 类事件热路径全覆盖，主动放弃候选附红线论证；约束下已无可证实收益的剩余候选 |
+| R12 | 收尾全量回归（1.2.1 原始 vs R10 最终产物，6 组 × 两侧各 2 样本）+ 战役总结 | [report/perf/12](report/perf/12-r12-final-regression.md) | 最终定格 **31 项显著提速 / 0 实锤回归**；唯一标记行经跨代分布核查（同字节码 62.6~94.7ns 双峰）判为噪声；dist ≡ build ≡ 被测 jar |
 
 基准框架与协议见 `benchmark/`（分组独立 JVM、多样本最小值聚合、噪声带规则），操作规范见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
 
