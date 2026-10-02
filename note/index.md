@@ -35,7 +35,10 @@ Java 21 · Gradle Kotlin DSL · Paper API 1.21 · Folia 区域调度（CC-Schedu
 | 轮次 | 优化点 | 报告 | 主要结果 |
 |------|--------|------|---------|
 | R1 | 配方匹配热路径（RecipeTrie 冻结结构/位掩码 DFS、TagExpander、DefaultItemMatcherResolver 键缓存） | [report/perf/01](report/perf/01-r1-recipe-matching.md) | 目标基准 6 项提升 1.3~2.7x，0 回归 |
-| R2 | 配置与热源总线（ConfigManager getOr/getList 读穿缓存、HeatSourceService 零分配状态匹配） | [report/perf/02](report/perf/02-r2-config-heat.md) | getOr 命中 3.9~4.3x、静态 miss 28.7x、getList 41x、热源 +14~31% |
+| R2 | 配置与热源总线（ConfigManager getOr/getList 读穿缓存、HeatSourceService 零分配状态匹配） | [report/perf/02](report/perf/02-r2-config-heat.md) | getOr 命中 3.9~4.5x、静态 miss 21.6x、getList 38.3x、热源 +15~17%（1 项病态动态键 -16.8% 有界代价） |
+| R3 | 容器 tick 路径（产物原型缓存消除逐 tick CraftEngine 构建、支撑属性节流、漏斗扫描零分配、缓存门量化） | [report/perf/03](report/perf/03-r3-container-tick.md) | 0 回归；集成路径以调用消除论证；potCache 缓存门 21.2ns vs 全量匹配 312.9ns |
+| R4 | 文本解析热路径（TextUtil 解析结果缓存 + 零分配标签扫描） | [report/perf/04](report/perf/04-r4-text-parse.md) | 静态文本解析 **~1291x**、8 行 lore **~606x**、纯 legacy ~34x、病态 miss 路径 +22.8% |
+| R5 | 原始 jar 全量回归 + 综合报告 | [report/perf/05](report/perf/05-r5-full-regression.md) | 对 1.2.1 原始版累计 **24 项提升 / 0 回归**（1.2x~1304x），3 项有界代价透明记录 |
 
 基准框架与协议见 `benchmark/`（分组独立 JVM、多样本最小值聚合、噪声带规则），操作规范见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
 

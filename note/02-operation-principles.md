@@ -205,7 +205,7 @@ container.tick_interval_ticks = N   默认 1 即逐 tick
 
 配套节流（以烹饪锅为典型）：
 
-- 热源判定缓存 **10 pass**（`HEAT_CACHE_TICKS`）——不必每 tick 查方块；
+- 热源判定缓存 **10 pass**（`HEAT_CACHE_TICKS`）——不必每 tick 查方块；R3 起锅支撑属性维护（updateAutomaticSupport，纯视觉）同窗节流，事件路径仍即时；
 - 漏斗自动化 **每 8 pass** 才执行一次；
 - 粒子三级节流：区块计数上限（`particle_throttle`）→ `ParticleVisibility` 观察者视距裁剪 → `ParticleThrottle` 计数器；声音独立节流。
 

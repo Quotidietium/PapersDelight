@@ -324,12 +324,12 @@ graph LR
 |----|------|---------|------|
 | 根包（编排/生命周期） | 7 | `PapersDelight` 621 行 | [modules/00](modules/00-lifecycle-config-registration.md) |
 | `client` | 3 | `PapersDelightClient` 62 行 | 同上 |
-| `config` | 5 | `ConfigManager` 745 行 | 同上 |
+| `config` | 5 | `ConfigManager` 783 行 | 同上 |
 | `registration`（含 `config` 子包） | 14 | `PapersDelightRecipeParser` 340 行 | 同上 |
 | `ce` / `compat` / `support` | 4 | `CraftEngineUtil` 367 行 | 同上 |
 | `command` | 1 | `PapersDelightCommand` 332 行 | 同上 |
 | 根包 `Metrics` | 1 | `Metrics` 905 行（bStats 内嵌） | 同上 |
-| `cookingpot` | 10 | `CookingPotManager` 1640 行 | [modules/01](modules/01-cookingpot-gui.md) |
+| `cookingpot` | 10 | `CookingPotManager` 1649 行 | [modules/01](modules/01-cookingpot-gui.md) |
 | `gui`（含 `module/*`、`recipebrowser`） | 10 | `CookingPotRecipeBook` 1097 行、`RecipeBrowserManager` 815 行 | 同上 |
 | `jug`（含 `recipe`） | 38 | `JugManager` 1118 行 | [modules/02](modules/02-jug.md) |
 | `mechanic/cutting` | 5 | `CuttingBoardManager` 1533 行 | [modules/03](modules/03-cutting-skillet-skewer-stove.md) |
@@ -343,7 +343,7 @@ graph LR
 | `mechanic/basket` | 2 | `BasketManager` 333 行 | 同上 |
 | `mechanic/petfood` | 1 | `PetFoodListener` 166 行 | 同上 |
 | `mechanic/function` | 8 | `EndermanGristleTeleportFunction` 128 行 | 同上 |
-| `recipe` | 11 | `RecipeManager` 146 行、`RecipeTrie` 101 行 | [modules/05](modules/05-recipe-effect-damage-stats.md) |
+| `recipe` | 11 | `RecipeManager` 187 行、`RecipeTrie` 274 行 | [modules/05](modules/05-recipe-effect-damage-stats.md) |
 | `effect` | 4 | `TimedEffectManager` 397 行 | 同上 |
 | `damage` | 2 | `DamageTypes` 240 行 | 同上 |
 | `stats` | 4 | `StatsManager` 462 行 | 同上 |
@@ -372,6 +372,6 @@ Folia 线程安全的关键约束：任何方块/实体操作必须在其所属 
 
 1. **无自动化测试**：35k 行代码零测试，回归完全依赖 `runServer`/`runServerFolia` 手动冒烟。
 2. **NMS 四版本矩阵维护成本**：`BridgeV*`/`CeHarvestFarmland`/`CeTradeWithVillager`/`VillagerTradePoolInjector`/`DamageTypeComposeRegistrar` 每个新增 MC 版本要复制适配 5 个类（v1_21_11 已出现 `BrainActivityCompatibility`/`VillagerTradePoolCompatibility` 兼容垫片，版本漂移迹象明显）。
-3. **巨型管理器**：`CookingPotManager` 1640 行、`CuttingBoardManager` 1533 行、`JugManager` 1118 行 —— 单类聚合了事件、tick、持久化、自动化四类职责；项目已用 `*BlockEntityController`/`*Flow`/`*Id` 辅助类开始拆分。
+3. **巨型管理器**：`CookingPotManager` 1649 行、`CuttingBoardManager` 1533 行、`JugManager` 1118 行 —— 单类聚合了事件、tick、持久化、自动化四类职责；项目已用 `*BlockEntityController`/`*Flow`/`*Id` 辅助类开始拆分。
 4. **CE/PE 同源门控是安全敏感点**：`FeatureSupport.EXTENDED` 是唯一开关且为编译期常量，配合 `tryUnlockAllFeatures` 反篡改提示（`PapersDelight.java:94-99`）。
 5. **`gui↔机制包` 受控循环**：菜单模块按机制内聚是合理取舍，但 `MenuManager` 必须保持零机制依赖才能维持引擎/模块分层。
