@@ -26,8 +26,18 @@ Java 21 · Gradle Kotlin DSL · Paper API 1.21 · Folia 区域调度（CC-Schedu
 | modules/04-farm-villager-misc-effects.md | farm 8 + villager 7 + misc 7 + nourishment 2 + basket 2 + petfood 1 + function 8，35 文件函数目录 | 1044 行 |
 | modules/05-recipe-effect-damage-stats.md | recipe 11 + effect 4 + damage 2 + stats 4 + heat 1 + util 9 + common 4，35 文件函数目录 | 950 行 |
 | modules/06-nms-bridge-resources.md | NMS-Bridge 30 类 + 四版本差异矩阵 + 构建配置 + 资源文件结构 | 680 行 |
+| report/perf/*.md | 性能优化轮次对比报告（基准数据 + 分析结论） | 持续更新 |
 
 **合计约 8,100 行分析文档；全部 225 个源文件的每个类、每个方法均有签名、行号与行为说明。**
+
+## 性能优化轮次（2026-10 起）
+
+| 轮次 | 优化点 | 报告 | 主要结果 |
+|------|--------|------|---------|
+| R1 | 配方匹配热路径（RecipeTrie 冻结结构/位掩码 DFS、TagExpander、DefaultItemMatcherResolver 键缓存） | [report/perf/01](report/perf/01-r1-recipe-matching.md) | 目标基准 6 项提升 1.3~2.7x，0 回归 |
+| R2 | 配置与热源总线（ConfigManager getOr/getList 读穿缓存、HeatSourceService 零分配状态匹配） | [report/perf/02](report/perf/02-r2-config-heat.md) | getOr 命中 3.9~4.3x、静态 miss 28.7x、getList 41x、热源 +14~31% |
+
+基准框架与协议见 `benchmark/`（分组独立 JVM、多样本最小值聚合、噪声带规则），操作规范见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
 
 ## 核心发现（十条）
 

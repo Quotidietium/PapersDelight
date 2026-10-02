@@ -269,7 +269,7 @@ flowchart TD
 | --- | --- | --- | --- |
 | 构造器 | `private StoveBurnDamageTypes()` | L21 | 抛异常禁止实例化 |
 
-### 2.10 ConfigManager（`src/main/java/dev/tako/papersdelight/config/ConfigManager.java`，745 行）
+### 2.10 ConfigManager（`src/main/java/dev/tako/papersdelight/config/ConfigManager.java`，783 行）
 **职责**：静态配置总线：管理 config.yml/lang/gui.yml 三份 YamlConfiguration 的加载、版本迁移、默认键合并、语言回退，提供全项目的取值/音效/图标 API 与热重载状态快照。
 **继承/接口**：final class，私有构造。
 **关键字段**：
@@ -278,6 +278,10 @@ flowchart TD
 | config | static YamlConfiguration | 用户 config.yml + gui.yml 平铺 |
 | lang | static YamlConfiguration | 当前语言文件 |
 | defaultConfig | static YamlConfiguration | JAR 内置 config.yml（getOr 第三级回退） |
+| READ_CACHE | static final ConcurrentHashMap&lt;String,Object&gt; | getOr 读穿缓存：key→已解析值或 READ_MISSING 哨兵（负缓存） |
+| LIST_CACHE | static final ConcurrentHashMap&lt;String,List&lt;String&gt;&gt; | getList 读穿缓存：key→不可变列表快照 |
+| READ_MISSING | static final Object | 「四级回退全空」哨兵，使 miss 也可被缓存 |
+| READ_CACHE_MAX / READ_CACHE_COUNT | static final int / AtomicInteger | 缓存条目上限 8192 与近似计数（防动态键无界增长；putIfAbsent 成功才自增） |
 | heatSources | static volatile List&lt;HeatSourceDef&gt; | 解析后的热源定义 |
 | MERGE_EXCLUDES | static final Set&lt;String&gt; | 合并默认键时排除 cutting_board.msg 与 skillet.msg |
 | BUILTIN_LANGS | static final List&lt;String&gt; | zh_cn、en_us |
@@ -286,60 +290,60 @@ flowchart TD
 **方法清单表**：
 | 方法 | 签名 | 行号 | 行为说明 |
 | --- | --- | --- | --- |
-| 构造器 | `private ConfigManager()` | L44 | 禁实例化 |
-| State（record 紧凑构造器） | `record State(String configYaml, String langYaml, String defaultConfigYaml, List<HeatSourceDef> heatSources)` | L46（紧凑构造器 L52） | 重载快照载体；heatSources 拷贝防篡改 |
-| captureState | `static synchronized State captureState()` | L57 | 把三份 Yaml 序列化为字符串 + heatSources 引用 |
-| restoreState | `static synchronized void restoreState(State)` | L61 | 反序列化恢复三份 Yaml 与 heatSources |
-| serialize | `private static String serialize(YamlConfiguration)` | L69 | null 安全的 saveToString |
-| deserialize | `private static YamlConfiguration deserialize(String)` | L73 | loadFromString，失败抛 IllegalArgumentException |
-| load | `static synchronized void load(Plugin)` | L84 | 见下方展开 |
-| reload | `static synchronized void reload(Plugin)` | L150 | load + 重载日志 |
-| normalizeUnversionedConfig | `private static void normalizeUnversionedConfig(Plugin, YamlConfiguration)` | L155 | 无版本号的旧配置保守归一化：cooking_pot.heat_sources 迁到顶级 heat_sources（顶级已存在则保留双份并警告）；提示旧 gui.yml/default_tools 格式风险 |
-| deepCopyYamlValue | `private static Object deepCopyYamlValue(Object)` | L177 | 递归深拷贝 Map/List 标量 |
-| migrateConfig | `private static void migrateConfig(Plugin, File, YamlConfiguration)` | L195 | 版本迁移链 v1→…→v12，见下方要点 |
-| releaseBuiltinLangFilesIfAvailable | `private static void releaseBuiltinLangFilesIfAvailable(Plugin, File)` | L364 | 遍历 JAR 的 lang/*.yml 条目，缺失的目标文件从 JAR 拷贝释放 |
-| resolveLangFile | `private static File resolveLangFile(Plugin, File, String)` | L401 | 目标语言缺失时按 en_us→zh_cn 回退，全缺则返回空文件路径并警告 |
-| mergeFromDefault | `private static void mergeFromDefault(Plugin, String, File, Set<String>)` | L422 | 从 JAR 默认文件向用户文件补缺失键，有变化或文件不存在时落盘 |
-| copyMissing | `private static boolean copyMissing(YamlConfiguration, ConfigurationSection, String, Set<String>)` | L447 | 递归补键：节不存在则 createSection；标量键 contains 检查后 set |
-| get | `static String get(String key)` | L475 | lang 直取（可能 null） |
-| getOr | `static String getOr(String key, String defaultVal)` | L479 | lang→config→defaultConfig→默认值 四级回退；空串视为 null |
-| getList | `static List<String> getList(String key)` | L496 | lang 列表，null 转空表 |
-| describeError | `static String describeError(Throwable)` | L502 | 异常消息为空时回退类名 |
-| getMaterial | `static Material getMaterial(String key, Material)` | L511 | config 取材质名 valueOf，失败回退默认 |
-| getInt | `static int getInt(String, int)` | L521 | config.getInt |
-| getIntegerList | `static List<Integer> getIntegerList(String)` | L525 | config.getIntegerList |
-| getConfigString | `static String getConfigString(String, String)` | L529 | config.getString |
-| getConfigBoolean | `static boolean getConfigBoolean(String, boolean)` | L533 | config.getBoolean |
-| getBoolean | `static boolean getBoolean(String, boolean)` | L537 | 同 getConfigBoolean（历史别名） |
+| 构造器 | `private ConfigManager()` | L61 | 禁实例化 |
+| State（record 紧凑构造器） | `record State(String configYaml, String langYaml, String defaultConfigYaml, List<HeatSourceDef> heatSources)` | L63（紧凑构造器 L68） | 重载快照载体；heatSources 拷贝防篡改 |
+| captureState | `static synchronized State captureState()` | L74 | 把三份 Yaml 序列化为字符串 + heatSources 引用 |
+| restoreState | `static synchronized void restoreState(State)` | L78 | 反序列化恢复三份 Yaml 与 heatSources；末尾清空读缓存（与 load 同一失效语义） |
+| serialize | `private static String serialize(YamlConfiguration)` | L89 | null 安全的 saveToString |
+| deserialize | `private static YamlConfiguration deserialize(String)` | L93 | loadFromString，失败抛 IllegalArgumentException |
+| load | `static synchronized void load(Plugin)` | L104 | 见下方展开 |
+| reload | `static synchronized void reload(Plugin)` | L173 | load + 重载日志 |
+| normalizeUnversionedConfig | `private static void normalizeUnversionedConfig(Plugin, YamlConfiguration)` | L178 | 无版本号的旧配置保守归一化：cooking_pot.heat_sources 迁到顶级 heat_sources（顶级已存在则保留双份并警告）；提示旧 gui.yml/default_tools 格式风险 |
+| deepCopyYamlValue | `private static Object deepCopyYamlValue(Object)` | L200 | 递归深拷贝 Map/List 标量 |
+| migrateConfig | `private static void migrateConfig(Plugin, File, YamlConfiguration)` | L218 | 版本迁移链 v1→…→v12，见下方要点 |
+| releaseBuiltinLangFilesIfAvailable | `private static void releaseBuiltinLangFilesIfAvailable(Plugin, File)` | L387 | 遍历 JAR 的 lang/*.yml 条目，缺失的目标文件从 JAR 拷贝释放 |
+| resolveLangFile | `private static File resolveLangFile(Plugin, File, String)` | L424 | 目标语言缺失时按 en_us→zh_cn 回退，全缺则返回空文件路径并警告 |
+| mergeFromDefault | `private static void mergeFromDefault(Plugin, String, File, Set<String>)` | L445 | 从 JAR 默认文件向用户文件补缺失键，有变化或文件不存在时落盘 |
+| copyMissing | `private static boolean copyMissing(YamlConfiguration, ConfigurationSection, String, Set<String>)` | L470 | 递归补键：节不存在则 createSection；标量键 contains 检查后 set |
+| get | `static String get(String key)` | L498 | lang 直取（可能 null） |
+| getOr | `static String getOr(String key, String defaultVal)` | L502 | 读穿缓存（READ_CACHE，MISSING 哨兵负缓存）→ lang→config→defaultConfig→默认值 四级回退；空串视为 null；load/restoreState 整体失效 |
+| getList | `static List<String> getList(String key)` | L527 | 读穿缓存（LIST_CACHE，unmodifiableList 共享快照）→ lang 列表，null 转空表；调用方均为只读消费（stream 派生/meta.lore 拷贝） |
+| describeError | `static String describeError(Throwable)` | L541 | 异常消息为空时回退类名 |
+| getMaterial | `static Material getMaterial(String key, Material)` | L550 | config 取材质名 valueOf，失败回退默认 |
+| getInt | `static int getInt(String, int)` | L560 | config.getInt |
+| getIntegerList | `static List<Integer> getIntegerList(String)` | L564 | config.getIntegerList |
+| getConfigString | `static String getConfigString(String, String)` | L568 | config.getString |
+| getConfigBoolean | `static boolean getConfigBoolean(String, boolean)` | L572 | config.getBoolean |
+| getBoolean | `static boolean getBoolean(String, boolean)` | L576 | 同 getConfigBoolean（历史别名） |
 | hasStaleLegacyDelightsOptIn | `static boolean hasStaleLegacyDelightsOptIn()` | L541 | 检测 compatibility_legacy_delights=true 残留 |
-| getDouble | `static double getDouble(String, double)` | L545 | config.getDouble |
-| getStringList | `static List<String> getStringList(String)` | L549 | config 列表，null 转空表 |
-| getStringOrStringList | `static List<String> getStringOrStringList(String)` | L554 | 标量或列表统一成列表 |
-| getMapList | `static List<Map<?, ?>> getMapList(String)` | L563 | config.getMapList，null 转空表 |
-| buildGuiItem | `static ItemStack buildGuiItem(String configPath, String langPath, String defaultName, List<String> defaultLore)` | L568 | 图标物品 + lang 名称/lore 组装 |
+| getDouble | `static double getDouble(String, double)` | L584 | config.getDouble |
+| getStringList | `static List<String> getStringList(String)` | L588 | config 列表，null 转空表 |
+| getStringOrStringList | `static List<String> getStringOrStringList(String)` | L593 | 标量或列表统一成列表 |
+| getMapList | `static List<Map<?, ?>> getMapList(String)` | L602 | config.getMapList，null 转空表 |
+| buildGuiItem | `static ItemStack buildGuiItem(String configPath, String langPath, String defaultName, List<String> defaultLore)` | L607 | 图标物品 + lang 名称/lore 组装 |
 | buildIconFromConfig | `static ItemStack buildIconFromConfig(String configPath)` | L585 | 优先字符串图标，否则 material+custom_model_data，兜底 BARRIER |
 | parseIconString | `static ItemStack parseIconString(String value)` | L603 | ce: 前缀走 CraftEngineItems.byId 构建失败回退 BARRIER；否则 Material.matchMaterial |
-| HeatSourceDef（record） | `record HeatSourceDef(Material material, Map<String,String> states, String ceBlock, String ceBlockTag, boolean conductor, boolean tray, boolean heatSource)` | L621 | 热源条目定义 |
-| getHeatSources | `static List<HeatSourceDef> getHeatSources()` | L626 | 返回 volatile 解析结果 |
-| parseHeatSources | `private static List<HeatSourceDef> parseHeatSources()` | L631 | 解析顶级 heat_sources 列表：material 值Of、states 小写化、ce_block/ce_block_tag、conductor/tray/heat_source 布尔（默认 false/false/true）；空列表警告 |
-| SoundConfig（record + 2 重载构造器 + rollPitch） | `record SoundConfig(String sound, float volume, float pitchMin, float pitchMax)` | L669（重载构造器 L671/L675，rollPitch L679） | 音效配置；rollPitch 在 min/max 间随机 |
-| readSoundConfig（4 参） | `static SoundConfig readSoundConfig(String path, String, float, float)` | L686 | 委托 5 参版本（min=max） |
-| readSoundConfig（5 参） | `static SoundConfig readSoundConfig(String path, String defaultSound, float defaultVolume, float defaultPitchMin, float defaultPitchMax)` | L691 | 读 path.sound/volume/pitch_min（回退 pitch）/pitch_max |
-| readSoundOrSimple | `static SoundConfig readSoundOrSimple(ConfigurationSection, String)` | L701 | 字符串简写或 section 完整格式；不匹配返回 null |
-| readConfigSoundOrSimple | `static SoundConfig readConfigSoundOrSimple(String)` | L717 | 以 config 为根的 readSoundOrSimple |
-| getConfig | `static YamlConfiguration getConfig()` | L721 | 暴露原始 config |
-| playSound（SoundConfig） | `static void playSound(World, double, double, double, SoundConfig)` | L725 | null 安全按 rollPitch 播放 |
-| playSound（显式参数） | `static void playSound(World, double, double, double, String, float, float)` | L731 | 指定参数播放 |
-| deleteFilesInDir | `private static void deleteFilesInDir(File)` | L737 | 删除目录下全部文件 |
+| HeatSourceDef（record） | `record HeatSourceDef(Material material, Map<String,String> states, String ceBlock, String ceBlockTag, boolean conductor, boolean tray, boolean heatSource)` | L660 | 热源条目定义 |
+| getHeatSources | `static List<HeatSourceDef> getHeatSources()` | L665 | 返回 volatile 解析结果 |
+| parseHeatSources | `private static List<HeatSourceDef> parseHeatSources()` | L670 | 解析顶级 heat_sources 列表：material 值Of、states 小写化、ce_block/ce_block_tag、conductor/tray/heat_source 布尔（默认 false/false/true）；空列表警告 |
+| SoundConfig（record + 2 重载构造器 + rollPitch） | `record SoundConfig(String sound, float volume, float pitchMin, float pitchMax)` | L708（重载构造器 L710/L714，rollPitch L718） | 音效配置；rollPitch 在 min/max 间随机 |
+| readSoundConfig（4 参） | `static SoundConfig readSoundConfig(String path, String, float, float)` | L725 | 委托 5 参版本（min=max） |
+| readSoundConfig（5 参） | `static SoundConfig readSoundConfig(String path, String defaultSound, float defaultVolume, float defaultPitchMin, float defaultPitchMax)` | L730 | 读 path.sound/volume/pitch_min（回退 pitch）/pitch_max |
+| readSoundOrSimple | `static SoundConfig readSoundOrSimple(ConfigurationSection, String)` | L740 | 字符串简写或 section 完整格式；不匹配返回 null |
+| readConfigSoundOrSimple | `static SoundConfig readConfigSoundOrSimple(String)` | L756 | 以 config 为根的 readSoundOrSimple |
+| getConfig | `static YamlConfiguration getConfig()` | L760 | 暴露原始 config |
+| playSound（SoundConfig） | `static void playSound(World, double, double, double, SoundConfig)` | L764 | null 安全按 rollPitch 播放 |
+| playSound（显式参数） | `static void playSound(World, double, double, double, String, float, float)` | L770 | 指定参数播放 |
+| deleteFilesInDir | `private static void deleteFilesInDir(File)` | L776 | 删除目录下全部文件 |
 
 **load 展开步骤**（调用链 file:line）：
-1. L85-96 建 dataFolder；JAR 内 config.yml 读入 defaultConfig。
-2. L98-116 用户 config.yml 不存在→saveResource；存在但无 config-version→normalizeUnversionedConfig 后写 v12；存在且带版本→migrateConfig。
-3. L117 mergeFromDefault 补缺省键（排除 MERGE_EXCLUDES）；L118 加载最终 config。
-4. L120-131 读 lang 名→建 lang 目录→zh_cn/en_us 两份内置语言合并默认键→releaseBuiltinLangFilesIfAvailable→resolveLangFile 回退→加载 lang。
-5. L133-143 gui.yml 释放+合并，随后把所有非 section 键平铺 set 进 config（GUI 键并入主配置命名空间）。
-6. L145 parseHeatSources。
-7. L147 打印"已加载配置，语言: X"。
+1. L105-116 建 dataFolder；JAR 内 config.yml 读入 defaultConfig。
+2. L118-136 用户 config.yml 不存在→saveResource；存在但无 config-version→normalizeUnversionedConfig 后写 v12；存在且带版本→migrateConfig。
+3. L137 mergeFromDefault 补缺省键（排除 MERGE_EXCLUDES）；L138 加载最终 config。
+4. L140-151 读 lang 名→建 lang 目录→zh_cn/en_us 两份内置语言合并默认键→releaseBuiltinLangFilesIfAvailable→resolveLangFile 回退→加载 lang。
+5. L153-163 gui.yml 释放+合并，随后把所有非 section 键平铺 set 进 config（GUI 键并入主配置命名空间）。
+6. L165 parseHeatSources。
+7. L167 打印"已加载配置，语言: X"；L168-170 **清空读缓存**（READ_CACHE/LIST_CACHE/计数器归零——load 末尾整体失效保证缓存与三份 Yaml 一致）。
 
 **migrateConfig 迁移链要点**：v1→v2 砧板 stack_xz_offset 0.06→0.075；v2→v3 删并重释放 gui.yml；v3→v4 仅升版本；v4→v5 写入 particle_throttle 六参数、重生成 gui.yml/recipes/tags.yml；v5→v6 三个 block 字段改列表、重生成 gui.yml；v6→v7 default_tools 改 CE 标签、删 insertable_tools/resource_directory/旧 recipes/cutting_recipes/tags.yml、重释放 insertable_tools.yml 与 gui.yml；v7→v8 移除 enchantment.rules（迁 enchantment.yml）；v8→v9 重生成 gui.yml；v9→v10 heat_sources 提升顶级；v11→v12 删除并重建内置语言文件；末尾统一钳到 CURRENT_CONFIG_VERSION 并在有变更时保存。
 
@@ -1044,7 +1048,7 @@ sequenceDiagram
 ## 4. 与其他模块的关系
 
 **本模块被以下管理器/服务消费**：
-- `ConfigManager`：全项目 41 个文件静态调用；getOr 四级回退（lang→config→defaultConfig→入参默认）同时承担消息 i18n 与配置取值双职责；`MenuManager.setMessageResolver(ConfigManager::getOr)` 把消息解析注入 GUI。
+- `ConfigManager`：全项目 41 个文件静态调用；getOr 四级回退（lang→config→defaultConfig→入参默认）同时承担消息 i18n 与配置取值双职责；getOr/getList 带 ConcurrentHashMap 读穿缓存（上限 8192 条、load/restoreState 整体失效、列表返回不可变快照）；`MenuManager.setMessageResolver(ConfigManager::getOr)` 把消息解析注入 GUI。
 - `StoveConfig.load` → `mechanic.stove.StoveManager`；`SkilletConfig.load` → `mechanic.skillet.SkilletManager`；`CookingPotConfig.load` → `cookingpot.CookingPotManager`；三者 reload 时重调 load 实现配置热更新。
 - `ParticleThrottleConfig`：被上述三个 XxxxConfig 内嵌，驱动区块级粒子/环境音密度节流（对应 config.yml particle_throttle 节）。
 - `AdvancedTagParser`/`AdvancedTagSnapshot` 静态快照：`recipe.AdvancedTagService`（经 AdvancedTagGate 向 api 包暴露 isAdvancedTagged/resolveItems）与 `recipe.DefaultItemMatcherResolver` 消费，用于配方原料的高级标签匹配。

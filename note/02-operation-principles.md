@@ -136,7 +136,7 @@ flowchart TD
 3. 释放 `gui.yml` 并**平铺合并进 config 命名空间**；
 4. 解析 `heat_sources` 为 `HeatSourceDef`（material / CE block / CE block-tag 三形态，`HeatSourceService.matchesBlockDef` 消费）。
 
-读取总线 `getOr(key, default)`：**lang → config → 内置 defaultConfig → 字面默认值** 四级回退，全项目 41 个文件消费——它同时是 i18n 与配置两条通道的合一入口。
+读取总线 `getOr(key, default)`：**lang → config → 内置 defaultConfig → 字面默认值** 四级回退，全项目 41 个文件消费——它同时是 i18n 与配置两条通道的合一入口。`getOr`/`getList` 前置 ConcurrentHashMap 读穿缓存（MISSING 哨兵负缓存，上限 8192 条；`load()`/`restoreState()` 末尾整体失效；getList 返回不可变快照），热路径命中免去逐级 Yaml 树查找与字符串分配。
 
 ### 2.2 CraftEngine 内容（配方）装载链
 

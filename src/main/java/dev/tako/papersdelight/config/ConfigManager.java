@@ -41,6 +41,23 @@ public final class ConfigManager {
     private static final List<String> BUILTIN_LANGS = List.of("zh_cn", "en_us");
     private static final int CURRENT_CONFIG_VERSION = 12;
 
+    /**
+     * getOr/getList 的读穿缓存：键 → 已解析的 YAML 借用值（String / List）或 MISSING 哨兵。
+     * 仅在 load()/restoreState()（均 synchronized）末尾整体失效。
+     * 安全前提（已审计）：运行期没有经 getConfig() 突变 config/lang 的调用点——
+     * 全项目对 getConfig() 的使用均为只读读取。
+     * 上界保护：真实配置/语言键为有限集（数百量级）；若调用方传入动态拼出的键
+     * （如含序号），超过上限后只读不存，保证内存占用有界。
+     */
+    private static final java.util.concurrent.ConcurrentHashMap<String, Object> READ_CACHE =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.concurrent.ConcurrentHashMap<String, List<String>> LIST_CACHE =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Object READ_MISSING = new Object();
+    private static final int READ_CACHE_MAX = 8192;
+    /** 近似条目计数（仅用于上界保护，非精确值；clear 时随缓存一起复位）。 */
+    private static final java.util.concurrent.atomic.AtomicInteger READ_CACHE_COUNT = new java.util.concurrent.atomic.AtomicInteger();
+
     private ConfigManager() {}
 
     public record State(
@@ -64,6 +81,9 @@ public final class ConfigManager {
         lang = deserialize(captured.langYaml());
         defaultConfig = deserialize(captured.defaultConfigYaml());
         heatSources = captured.heatSources();
+        READ_CACHE.clear();
+        LIST_CACHE.clear();
+        READ_CACHE_COUNT.set(0);
     }
 
     private static String serialize(YamlConfiguration yaml) {
@@ -145,6 +165,9 @@ public final class ConfigManager {
         heatSources = parseHeatSources();
 
         plugin.getLogger().info(ConfigManager.getOr("cfg_loaded", "已加载配置，语言: %lang%").replace("%lang%", langName));
+        READ_CACHE.clear();
+        LIST_CACHE.clear();
+        READ_CACHE_COUNT.set(0);
     }
 
     public static synchronized void reload(Plugin plugin) {
@@ -479,15 +502,23 @@ public final class ConfigManager {
     public static String getOr(String key, String defaultVal) {
 
         if (key == null || lang == null || config == null) return defaultVal;
-        String val = lang.getString(key);
-        if (val == null) {
+        Object cached = READ_CACHE.get(key);
+        if (cached == null) {
+            String val = lang.getString(key);
+            if (val == null) {
 
-            val = config.getString(key);
-        }
-        if (val == null && defaultConfig != null) {
+                val = config.getString(key);
+            }
+            if (val == null && defaultConfig != null) {
 
-            val = defaultConfig.getString(key);
+                val = defaultConfig.getString(key);
+            }
+            cached = val == null ? READ_MISSING : val;
+            if (READ_CACHE_COUNT.get() < READ_CACHE_MAX && READ_CACHE.putIfAbsent(key, cached) == null) {
+                READ_CACHE_COUNT.incrementAndGet();
+            }
         }
+        String val = cached == READ_MISSING ? null : (String) cached;
         if (val == null) return defaultVal;
         if (val.isEmpty()) return null;
         return val;
@@ -495,8 +526,16 @@ public final class ConfigManager {
 
     public static List<String> getList(String key) {
         if (key == null) return Collections.emptyList();
-        List<String> list = lang.getStringList(key);
-        return list != null ? list : Collections.emptyList();
+        List<String> cached = LIST_CACHE.get(key);
+        if (cached == null) {
+            List<String> list = lang.getStringList(key);
+            // 缓存实例跨调用共享：不可变包装使潜在的未来篡改调用快速失败，而非静默污染缓存
+            cached = list == null ? Collections.emptyList() : Collections.unmodifiableList(list);
+            if (READ_CACHE_COUNT.get() < READ_CACHE_MAX && LIST_CACHE.putIfAbsent(key, cached) == null) {
+                READ_CACHE_COUNT.incrementAndGet();
+            }
+        }
+        return cached;
     }
 
     public static String describeError(Throwable error) {

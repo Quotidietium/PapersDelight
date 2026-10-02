@@ -59,11 +59,27 @@ public final class HeatSourceService {
         if (definition.states().isEmpty()) return true;
         String data = block.getBlockData().getAsString().toLowerCase(Locale.ROOT);
         for (Map.Entry<String, String> state : definition.states().entrySet()) {
-            if (!data.contains(state.getKey().toLowerCase(Locale.ROOT) + "=" + state.getValue().toLowerCase(Locale.ROOT))) {
+            // 与 data.contains(key.toLowerCase + "=" + value.toLowerCase) 完全等价的零拼接实现：
+            // 定位 key 出现位置后用 regionMatches 验证紧跟的 "=value"。
+            if (!containsKv(data, state.getKey().toLowerCase(Locale.ROOT), state.getValue().toLowerCase(Locale.ROOT))) {
                 return false;
             }
         }
         return true;
+    }
+
+    private static boolean containsKv(String data, String key, String value) {
+        int from = 0;
+        while (true) {
+            int idx = data.indexOf(key, from);
+            if (idx < 0) return false;
+            int valueStart = idx + key.length();
+            if (data.regionMatches(valueStart, "=", 0, 1)
+                    && data.regionMatches(valueStart + 1, value, 0, value.length())) {
+                return true;
+            }
+            from = idx + 1;
+        }
     }
 
     public static boolean isCustomBlockTagged(Block block, String tagName) {

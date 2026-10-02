@@ -533,9 +533,10 @@ graph LR
 | isActiveHeatSource | `public static boolean isActiveHeatSource(Block block)` | 20 | 遍历热源定义：仅取 heatSource 且非 conductor 且 matchesBlockDef 且 checkLit 的定义——「自身就是点燃热源」 |
 | isHeated | `public static boolean isHeated(Block block)` | 30 | 受热判定（锅/煎锅体）：第一轮查正下方非导体热源且 lit；第二轮若正下方是导体定义，则再往下两格查非导体热源（热量穿过导体块传递），只处理第一个命中的导体定义后 break |
 | isMatchingHeatSource | `private static boolean isMatchingHeatSource(Block, HeatSourceDef)` | 51 | matchesBlockDef && checkLit 组合谓词 |
-| matchesBlockDef | `public static boolean matchesBlockDef(Block, HeatSourceDef)` | 55 | 定义匹配三级：ceBlock→CraftEngineUtil.isCustomBlock 精确匹配；ceBlockTag→isCustomBlockTagged；否则 Material 相等后对 BlockData 字符串做 `key=value` 逐项 contains 匹配（states 空表时仅材质相等即真） |
+| matchesBlockDef | `public static boolean matchesBlockDef(Block, HeatSourceDef)` | 55 | 定义匹配三级：ceBlock→CraftEngineUtil.isCustomBlock 精确匹配；ceBlockTag→isCustomBlockTagged；否则 Material 相等后对 BlockData 字符串逐状态做 containsKv 定位匹配（states 空表时仅材质相等即真） |
 | isCustomBlockTagged | `public static boolean isCustomBlockTagged(Block, String tagName)` | 69 | CraftEngineBlocks.getCustomBlockState 取不可变状态，检查 settings().tags() 含 Key.of(tagName)；Throwable 一律 false |
-| checkLit | `public static boolean checkLit(Block block)` | 79 | 点燃态：BlockData 为 Lightable→isLit；CE 自定义属性 "lit"→Boolean.parseBoolean；两者皆无→true（不可点燃的方块恒视为点燃） |
+| containsKv | `private static boolean containsKv(String data, String key, String value)` | 71 | 零分配 `key=value` 谓词匹配：indexOf 定位 key 后 regionMatches 比对 value（语义与 `data.contains(key+"="+value)` 等价，含 value 为 key 前缀等碰撞场景；key/value 调用方已 toLowerCase） |
+| checkLit | `public static boolean checkLit(Block block)` | 95 | 点燃态：BlockData 为 Lightable→isLit；CE 自定义属性 "lit"→Boolean.parseBoolean；两者皆无→true（不可点燃的方块恒视为点燃） |
 
 ### 2.23 MealLoreUtil（`util/MealLoreUtil.java`，184 行）
 

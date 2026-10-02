@@ -347,7 +347,7 @@ graph LR
 | `effect` | 4 | `TimedEffectManager` 397 行 | 同上 |
 | `damage` | 2 | `DamageTypes` 240 行 | 同上 |
 | `stats` | 4 | `StatsManager` 462 行 | 同上 |
-| `heat` | 1 | `HeatSourceService` 85 行 | 同上 |
+| `heat` | 1 | `HeatSourceService` 101 行 | 同上 |
 | `util` | 9 | `MealLoreUtil` 184 行 | 同上 |
 | `common` | 4 | `ExplosionSettleFlow` 43 行 | 同上 |
 | `NMS-Bridge`（api + root + 4 版本） | 30 | `BridgeV1_21_11` 412 行 | [modules/06](modules/06-nms-bridge-resources.md) |
