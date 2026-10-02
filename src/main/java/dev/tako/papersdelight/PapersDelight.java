@@ -228,7 +228,9 @@ public final class PapersDelight {
             client.getServer().getPluginManager().registerEvents(handheldSkilletIngredientModels, client);
         }
         jugItemModels = new JugItemModelGenerator(client);
-        client.getServer().getPluginManager().registerEvents(jugItemModels, client);
+        if (dev.tako.papersdelight.support.FeatureSupport.jugFluidItemModels()) {
+            client.getServer().getPluginManager().registerEvents(jugItemModels, client);
+        }
         skilletManager = new SkilletManager(client, handheldSkilletIngredientModels);
         skilletManager.load();
         client.getServer().getPluginManager().registerEvents(skilletManager, client);

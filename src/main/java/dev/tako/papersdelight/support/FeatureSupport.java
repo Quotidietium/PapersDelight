@@ -12,6 +12,10 @@ public final class FeatureSupport {
         return TryUnlockAllFeatures;
     }
 
+    public static boolean jugFluidItemModels() {
+        return EXTENDED;
+    }
+
     public static boolean handheldSkillet() {
         return EXTENDED;
     }
