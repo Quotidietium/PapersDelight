@@ -257,7 +257,14 @@ public final class CraftEngineUtil {
 
         if (CraftEngineItems.isCustomItem(stack)) {
             Key key = CraftEngineItems.getCustomItemId(stack);
-            return id.equals(key.toString()) || id.equals(key.value());
+            // R10 零分配等价改写：key.toString() ≡ key.namespace + ":" + key.value（CE Key 字节码核实），
+            // 原 id.equals(key.toString()) 每次拼接分配一个新串；裸 value 快路径先行
+            if (id.equals(key.value())) return true;
+            int split = id.indexOf(':');
+            return split == key.namespace.length()
+                    && id.length() == split + 1 + key.value.length()
+                    && id.regionMatches(0, key.namespace, 0, split)
+                    && id.regionMatches(split + 1, key.value, 0, key.value.length());
         }
 
 

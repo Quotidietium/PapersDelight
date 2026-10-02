@@ -45,6 +45,12 @@ public final class IdResolutionBench {
     private static final String NON_MEMBER = "farmersdelight:raw_beef";
     private static final String UNKNOWN_TAG = "farmersdelight:no_such_tag";
 
+    /** R10 isItem CE 分支改写的等价性测试与对比基准所用的 id 集（覆盖命中/裸值/错命名空间/多冒号等形态） */
+    private static final String[] IDS_FOR_COMPARE = {
+            "farmersdelight:onion", "farmersdelight:tomato", "onion", "farmersdelight:no_such_item",
+            "other_ns:onion", "farmersdelight:sub:onion", "not_a_material", "Farmersdelight:Onion",
+    };
+
     /** cachedKeyForBenchmark 为 R6 新增包私有 API：旧 jar 上跳过缓存命中行 */
     private static boolean cachedKeyApiAvailable() {
         try {
@@ -57,6 +63,7 @@ public final class IdResolutionBench {
 
     public static void run(List<Result> results) {
         selfCheck();
+        selfCheckIdCompare();
 
         Key tagKey = Key.of(TAG_ID);
         AdvancedTagSnapshot snapshot = buildSnapshot();
@@ -99,6 +106,18 @@ public final class IdResolutionBench {
             }
         }));
 
+        Key customKey = Key.of("farmersdelight:onion");
+        results.add(Bench.measure("idResolve.idCompare[toString-equals]", (bh, ops) -> {
+            for (int i = 0; i < ops; i++) {
+                bh.consume(idCompareToString(IDS_FOR_COMPARE[i & 7], customKey));
+            }
+        }));
+        results.add(Bench.measure("idResolve.idCompare[split-compare]", (bh, ops) -> {
+            for (int i = 0; i < ops; i++) {
+                bh.consume(idCompareSplit(IDS_FOR_COMPARE[i & 7], customKey));
+            }
+        }));
+
         if (cachedKeyApiAvailable()) {
             selfCheckCachedKey();
             results.add(Bench.measure("idResolve.cachedKey[hit]", (bh, ops) -> {
@@ -123,6 +142,45 @@ public final class IdResolutionBench {
             return (Key) m.invoke(null, tagId);
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException("cachedKeyForBenchmark probe lost", e);
+        }
+    }
+
+    /** 旧实现形态（R10 前）：key.toString() 每次拼接分配 */
+    static boolean idCompareToString(String id, Key key) {
+        return id.equals(key.toString()) || id.equals(key.value());
+    }
+
+    /** 新实现形态（R10）：零分配等价改写（与 CraftEngineUtil.isItem 生产代码同构） */
+    static boolean idCompareSplit(String id, Key key) {
+        if (id.equals(key.value())) return true;
+        int split = id.indexOf(':');
+        return split == key.namespace.length()
+                && id.length() == split + 1 + key.value.length()
+                && id.regionMatches(0, key.namespace, 0, split)
+                && id.regionMatches(split + 1, key.value, 0, key.value.length());
+    }
+
+    private static void selfCheckIdCompare() {
+        Key onion = Key.of("farmersdelight:onion");
+        for (String id : IDS_FOR_COMPARE) {
+            Bench.check(idCompareToString(id, onion) == idCompareSplit(id, onion),
+                    "idCompare equivalence for " + id);
+        }
+        Bench.check(idCompareToString("farmersdelight:onion", onion)
+                && idCompareSplit("farmersdelight:onion", onion), "full id hit both forms");
+        Bench.check(idCompareToString("onion", onion) && idCompareSplit("onion", onion), "bare value hit both forms");
+        Bench.check(!idCompareSplit("farmersdelight:sub:onion", onion), "multi-colon miss");
+        Bench.check(!idCompareSplit("", onion) && !idCompareToString("", onion), "empty id miss");
+        // 随机等价性模糊（种子固定可复现）
+        java.util.Random rng = new java.util.Random(20261003L);
+        String alphabet = "abcdeilnorstu_:ABC";
+        for (int i = 0; i < 10_000; i++) {
+            int len = 1 + rng.nextInt(28);
+            StringBuilder sb = new StringBuilder(len);
+            for (int c = 0; c < len; c++) sb.append(alphabet.charAt(rng.nextInt(alphabet.length())));
+            String probe = sb.toString();
+            Bench.check(idCompareToString(probe, onion) == idCompareSplit(probe, onion),
+                    "idCompare fuzz mismatch for " + probe);
         }
     }
 

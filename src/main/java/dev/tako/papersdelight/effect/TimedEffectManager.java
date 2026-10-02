@@ -319,7 +319,8 @@ public abstract class TimedEffectManager implements Listener {
             return;
         }
 
-        Component title = buildTitle(remaining, session.amplifier());
+        // R10：标题按秒桶缓存（formatDuration 秒级粒度）——每受效果玩家 20 次组件构建/秒 → 1 次
+        Component title = session.cachedTitle(remaining, () -> buildTitle(remaining, session.amplifier()));
         double progress = (double) remaining / Math.max(session.totalDurationTicks(), 1);
         session.bossBar().progress((float) Math.max(0.0, Math.min(1.0, progress)));
         if (!title.equals(session.bossBar().name())) {

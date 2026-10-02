@@ -268,7 +268,7 @@ graph LR
 | Decomposition 紧凑构造器 | `public Decomposition{...}` | 8 | 记录 `input/output/catalysts`（L7）；catalysts 判空归一并 copyOf |
 | Single 紧凑构造器 | `public Single{...}` | 14 | 记录 `item/description`（L13）；description 判空归一并 copyOf |
 
-### 2.12 TimedEffectManager（`effect/TimedEffectManager.java`，397 行）
+### 2.12 TimedEffectManager（`effect/TimedEffectManager.java`，398 行）
 
 **职责**：计时效果抽象基类（模板方法模式）。管理「BossBar 进度条 + 每 2 tick 调度 + 会话表 + PDC 持久化 + 生命周期钩子」，子类只需覆写钩子即可获得一种新的计时效果；同时维护全局静态注册表供效果功能（function）模块按 qualifiedId 查找。
 **继承/接口**：`abstract class implements Listener`。
@@ -305,7 +305,7 @@ graph LR
 | tick | `private void tick()` | 257 | 周期驱动：internalTick+=2；空表快速返回；迭代会话——离线者直接移除；到期者经 runOnPlayer 派发隐藏+onExpire；存活者派发 tickPlayer |
 | runOnPlayer | `private void runOnPlayer(Player, Runnable)` | 290 | Folia 线程路由：插件可用时经 CCScheduler EntityScheduler 派发；插件已禁用则当前线程直跑并吞异常 |
 | runOnPlayerLater | `private void runOnPlayerLater(Player, Runnable, long delayTicks)` | 302 | 带延迟的实体调度版本，插件禁用时不执行 |
-| tickPlayer | `private void tickPlayer(Player, UUID, TimedEffectSession, int now)` | 307 | 单玩家刷新：校验会话身份（防并发错位）→ 再次到期检查 → 重算标题与 progress 更新 BossBar（标题组件相同则不重复写）→ onEffectTick 钩子 |
+| tickPlayer | `private void tickPlayer(Player, UUID, TimedEffectSession, int now)` | 307 | 单玩家刷新：校验会话身份（防并发错位）→ 再次到期检查 → 重算标题与 progress 更新 BossBar（标题组件相同则不重复写；R10 起标题经会话秒桶缓存）→ onEffectTick 钩子 |
 | onPlayerQuit | `@EventHandler(LOWEST) public void onPlayerQuit(PlayerQuitEvent)` | 333 | 退出：LOWEST 优先级最先 persist 到 PDC，再移除会话隐藏 BossBar |
 | onPlayerJoin | `@EventHandler(MONITOR) public void onPlayerJoin(PlayerJoinEvent)` | 342 | 加入：MONITOR 优先级延迟 20 tick 读 PDC 记录，有剩余则清 PDC→restoreSession→deserializeExtra |
 | onPlayerDeath | `@EventHandler(MONITOR) public void onPlayerDeath(PlayerDeathEvent)` | 357 | 死亡：以 DEATH 原因移除效果（不落 PDC） |
@@ -347,17 +347,19 @@ graph LR
 | --- | --- | --- | --- |
 | — | 纯记录，无额外方法 | 4 | 由 EffectPdcStore.read 组装、TimedEffectManager.onPlayerJoin 消费 |
 
-### 2.15 TimedEffectSession（`effect/TimedEffectSession.java`，7 行）
+### 2.15 TimedEffectSession（`effect/TimedEffectSession.java`，58 行）
 
-**职责**：单个玩家单个效果的活跃会话快照。
-**继承/接口**：Java record。
-**关键字段（记录组件）**：`bossBar`（Adventure BossBar）、`endTick`（到期内部时钟）、`totalDurationTicks`（总时长）、`amplifier`（等级）。
+**职责**：单个玩家单个效果的活跃会话快照；R10 起附带标题秒桶缓存。
+**继承/接口**：final class（R10 前为 record；构造器/访问器形状不变，调用点零改动）。
+**关键字段**：`bossBar`（Adventure BossBar）、`endTick`（到期内部时钟）、`totalDurationTicks`（总时长）、`amplifier`（等级）——均不可变；`cachedTitle/cachedTitleSeconds`（R10，可变，秒桶缓存的标题组件）。
 
 **方法清单表**：
 
 | 方法 | 签名 | 行号 | 行为说明 |
 | --- | --- | --- | --- |
-| — | 纯记录，无额外方法 | 6 | 存于 TimedEffectManager.sessions 并发表；tickPlayer 用引用相等校验会话身份 |
+| 构造器 | `TimedEffectSession(BossBar, int, int, int)` | 22 | 四参初始化（缓存字段置空/-1） |
+| bossBar/endTick/totalDurationTicks/amplifier | 访问器 ×4 | 30-44 | 与原 record 组件同名同形 |
+| cachedTitle | `Component cachedTitle(int remainingTicks, Supplier<Component> builder)` | 48 | R10 秒桶缓存：formatDuration 为秒级粒度，同秒内复用标题组件（构建经 supplier 调用管理器可覆写的 buildTitle）；每受效果玩家 20 次组件构建/秒 → 1 次 |
 
 ### 2.16 DamageTypes（`damage/DamageTypes.java`，240 行）
 

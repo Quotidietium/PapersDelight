@@ -738,7 +738,7 @@ flowchart TD
 | getCustomBlockIntProperty | `static int getCustomBlockIntProperty(Block, String, int fallback)` L196 字符串属性 parseInt |
 | getCustomBlockProperty | `static String getCustomBlockProperty(Block, String)` L202 读任意属性值字符串 |
 | setCustomBlockProperty | `static boolean setCustomBlockProperty(Block, String, String)` L216 按 valueByName 找值并 with+place 更新状态 |
-| isItem | `static boolean isItem(ItemStack, String id)` L237 `#` 前缀：CE 物品标签或原版 Tag；CE 自定义物品比 id/value；否则原版 Material 匹配 |
+| isItem | `static boolean isItem(ItemStack, String id)` L243 `#` 前缀：CE 物品标签或原版 Tag；CE 自定义物品比 id/value（R10 起零分配等价改写：裸 value 快路径先行，全限定比较手工拆 namespace/value，免去每次 key.toString() 拼接分配，等价性经 1 万次种子模糊证明）；否则原版 Material 匹配 |
 | getCustomItemId | `static String getCustomItemId(ItemStack)` L270 非自定义或空返回 null |
 | matchesAnyItem | `static boolean matchesAnyItem(ItemStack, Collection<String>)` L278 逐 id isItem 短路 |
 | getItemIdentifier | `static String getItemIdentifier(ItemStack)` L286 CE id 优先否则原版 key |
