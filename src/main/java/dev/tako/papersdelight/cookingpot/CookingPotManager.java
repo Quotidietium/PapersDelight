@@ -993,9 +993,18 @@ public final class CookingPotManager implements Listener {
 
         CookingPotData data = session.data;
         long version = session.version();
+        // R8 空闲快路径快照（区域线程读块、数据字段读与会话分支既有模式一致）：
+        // 数据全空（无输入/未烹饪/无待取出/无成品）且六个相邻位无漏斗（侧向漏斗空闲时仍可投餐具、
+        // 下方漏斗可取成品，不能跳过）——此后若玩家也未编辑且热指示未变，本 tick 无事可做。
+        final boolean idleNoHopper = !hasInput(data) && !data.isCooking
+                && isEmpty(data.waitingOutput) && isEmpty(data.finalOutput)
+                && !hasHopperNeighbor(block);
         Runnable hopperTick = () -> {
             if (!isCurrentSessionVersion(location, session, version)) return;
             boolean inputChanged = syncOwnerGuiEditableSlots(session, data);
+            // 空闲快路径：跳过 regionStep 与 refresh 两次调度提交（3→1 次/tick）；
+            // 与无会话空闲分支的 hopperTicks 不递增语义同型
+            if (!inputChanged && idleNoHopper && heated == session.lastRefreshedHeated) return;
             Runnable regionStep = () -> {
                 if (!isCurrentSessionVersion(location, session, version)) return;
                 boolean stateChanged = inputChanged;
@@ -1004,6 +1013,9 @@ public final class CookingPotManager implements Listener {
                     stateChanged |= tickPot(location, block, data, session, heated);
                 }
                 if (stateChanged) ctrl.fromData(data);
+                // R8 无变化不刷新：GUI 展示的全部维度（食材/餐具=输入与漏斗、进度/待取/成品=tickPot、
+                // 热图标=heated 对比 lastRefreshedHeated）本轮均未变化时，省去第 3 次调度提交
+                if (!inputChanged && !stateChanged && heated == session.lastRefreshedHeated) return;
                 Runnable refresh = () -> {
                     if (isCurrentSessionVersion(location, session, version)
                             && session.player.getOpenInventory().getTopInventory() == session.menu)
@@ -1089,7 +1101,6 @@ public final class CookingPotManager implements Listener {
         if (above.getType() == Material.HOPPER && above.getState() instanceof Container container) {
             changed |= moveOneIntoIngredients(container.getInventory(), data);
         }
-
         for (BlockFace face : SIDE_HOPPER_FACES) {
             Block side = block.getRelative(face);
             if (side.getType() != Material.HOPPER || !(side.getState() instanceof Container container)
@@ -1111,6 +1122,16 @@ public final class CookingPotManager implements Listener {
             }
         }
         return changed;
+    }
+
+    /** R8：六个相邻位是否存在漏斗（保守判定，不查朝向）。仅空闲快路径使用，区域线程调用。 */
+    private static boolean hasHopperNeighbor(Block block) {
+        if (block.getRelative(BlockFace.UP).getType() == Material.HOPPER) return true;
+        if (block.getRelative(BlockFace.DOWN).getType() == Material.HOPPER) return true;
+        for (BlockFace face : SIDE_HOPPER_FACES) {
+            if (block.getRelative(face).getType() == Material.HOPPER) return true;
+        }
+        return false;
     }
 
     private boolean moveOneIntoIngredients(Inventory source, CookingPotData data) {
@@ -1274,16 +1295,18 @@ public final class CookingPotManager implements Listener {
             session.skipNextIngredientRead = false;
         } else {
             for (int i = 0; i < CookingPotLayout.INGREDIENTS.length; i++) {
-                ItemStack next = take(inventory.getItem(CookingPotLayout.INGREDIENTS[i]));
+                // 先比后克隆（R8）：稳态（玩家未编辑）每槽每 tick 省 1 次 take 克隆；
+                // 不等才 take（克隆）写入数据模型，与库存镜像解耦的语义不变
+                ItemStack next = inventory.getItem(CookingPotLayout.INGREDIENTS[i]);
                 if (!itemsEqual(data.ingredients[i], next)) {
-                    data.ingredients[i] = next;
+                    data.ingredients[i] = take(next);
                     changed = true;
                 }
             }
         }
-        ItemStack container = take(inventory.getItem(CookingPotLayout.UTENSIL));
+        ItemStack container = inventory.getItem(CookingPotLayout.UTENSIL);
         if (!itemsEqual(data.utensil, container)) {
-            data.utensil = container;
+            data.utensil = take(container);
             changed = true;
         }
         return changed;
@@ -1293,6 +1316,7 @@ public final class CookingPotManager implements Listener {
         refreshIngredientSlots(inventory, data, session);
         populateInventory(inventory, data);
         updateHeatIndicator(inventory, heated);
+        if (session != null) session.lastRefreshedHeated = heated;
     }
 
     private void refreshOpenSession(Block block, CookingPotData data) {
@@ -1314,7 +1338,8 @@ public final class CookingPotManager implements Listener {
     }
 
     private static void refreshSlot(Inventory inventory, int slot, ItemStack item) {
-        writeSlot(inventory, slot, isEmpty(item) ? null : item.clone());
+        // writeSlot 内部先比较、不等才写且写时克隆——外层预克隆在稳态（槽位未变）每 tick 每槽被丢弃一次
+        writeSlot(inventory, slot, isEmpty(item) ? null : item);
     }
 
     private static void writeSlot(Inventory inventory, int slot, ItemStack item) {
@@ -1629,6 +1654,8 @@ public final class CookingPotManager implements Listener {
         long unloadGeneration;
         volatile long operationVersion;
         boolean skipNextIngredientRead;
+        /** R8 空闲快路径：上次 refreshInventory 使用的热态——未变化时跳过整次刷新调度 */
+        boolean lastRefreshedHeated;
 
         long version() {
             return operationVersion;

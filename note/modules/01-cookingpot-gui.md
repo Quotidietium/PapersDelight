@@ -194,10 +194,11 @@ graph TD
 | registerPot | void registerPot(CookingPotBlockEntityController) | 906 | CE onLoad 回调：位置入 trackedLocations |
 | forgetPot | void forgetPot(CookingPotBlockEntityController) | 911 | CE onUnload 回调：清配方缓存与粒子计数；方块为空气则取消追踪 |
 | locationOf | private static Location locationOf(CookingPotBlockEntityController) | 920 | CE 世界名 + BlockPos → Bukkit BlockLocation |
-| potTick | void potTick(CookingPotBlockEntityController, CEWorld, BlockPos) | 931 | tick 主循环（详见 3.1）：批处理到期判定、热缓存 10 pass、粒子节流播放、空闲早退、无会话路径（漏斗 + tickPot 批量回放）、有会话路径（实体调度同步 GUI → 区域调度推进 → 刷新 GUI） |
+| potTick | void potTick(CookingPotBlockEntityController, CEWorld, BlockPos) | 931 | tick 主循环（详见 3.1）：批处理到期判定、热缓存 10 pass、粒子节流播放、空闲早退、无会话路径（漏斗 + tickPot 批量回放）、有会话路径（实体调度同步 GUI → 区域调度推进 → 刷新 GUI）；R8 起有会话路径带空闲快路径（数据全空+六向无漏斗+玩家未编辑+热指示未变 → 跳过 regionStep/refresh 两次调度提交，3→1 次/tick） |
 | tickPot | private boolean tickPot(Location, Block, CookingPotData, CookingSession, boolean) | 1030 | 单次烹饪推进（详见 3.1/3.2）：配方缓存查找 → canCook → 加热 cookTime++/finishCooking 或冷却 cookTime-2 → 进度百分比 → moveMealToOutput |
 | updateAutomaticSupport | void updateAutomaticSupport(Block) | 1078 | support 非 2 时按 isTraySource 自动设 0/1（手动 2 不覆盖）；R3 起由 potTick 挂到热源刷新同窗（每 10 个补偿 tick 一次），放置/交互事件路径仍即时 |
 | processHoppers | private boolean processHoppers(Block, CookingPotData) | 1085 | 漏斗自动化（详见 3.4）：上方漏斗 moveOneIntoIngredients、四侧朝锅漏斗 moveOneIntoContainer（静态数组 SIDE_HOPPER_FACES，R3 前为每次 List.of 组包）、下方漏斗取 finalOutput |
+| hasHopperNeighbor | private static boolean hasHopperNeighbor(Block) | R8 新增（~L1123） | 六个相邻位是否漏斗（保守不查朝向）；仅空闲快路径在区域线程调用 |
 | moveOneIntoIngredients | private boolean moveOneIntoIngredients(Inventory, CookingPotData) | 1116 | 从漏斗库存移 1 个进首个空/可叠食材槽 |
 | moveOneIntoContainer | private boolean moveOneIntoContainer(Inventory, CookingPotData) | 1137 | 移 1 个进餐具槽（同类且未满才叠） |
 | resolveContainer | private String resolveContainer(CookingRecipe) | 1156 | 配方容器优先；否则取成品 CraftRemainder ID（containerFallbackCache 永久缓存，空串表无） |
@@ -208,12 +209,12 @@ graph TD
 | moveMealToOutput | private boolean moveMealToOutput(CookingPotData) | 1223 | 上菜核心：waitingOutput → finalOutput。无容器直接按余量搬；有容器要求 utensil 与 recipeContainer 匹配，按 min（余量, 等待数, 餐具数）转移并消耗等量餐具；搬空清 recipeContainer |
 | canStoreMeal | private boolean canStoreMeal(CookingPotData, CookingRecipe) | 1255 | 成品可创建且 waitingOutput 为空或同类不超 64；R3 起产物实例取自 RecipeManager.resultPrototype 共享只读原型（替代逐 tick CraftEngine createItem） |
 | syncOwnerGuiEditableSlots | private boolean syncOwnerGuiEditableSlots(CookingSession, CookingPotData) | 1264 | 会话玩家顶栏仍是本菜单时同步可编辑槽 |
-| syncEditableSlots | private boolean syncEditableSlots(CookingSession, CookingPotData, Inventory) | 1270 | GUI→数据回读食材/餐具；skipNextIngredientRead 时反向 refresh（finishCooking 后防止把旧 GUI 内容读回覆盖） |
-| refreshInventory | private void refreshInventory(Inventory, CookingPotData, CookingSession, boolean) | 1292 | 全量刷新：食材槽 + populateInventory + 热图标 |
+| syncEditableSlots | private boolean syncEditableSlots(CookingSession, CookingPotData, Inventory) | 1270 | GUI→数据回读食材/餐具；skipNextIngredientRead 时反向 refresh（finishCooking 后防止把旧 GUI 内容读回覆盖）；R8 起先比后克隆——稳态每槽每 tick 省 1 次 take 克隆，不等才克隆写入模型 |
+| refreshInventory | private void refreshInventory(Inventory, CookingPotData, CookingSession, boolean) | 1292 | 全量刷新：食材槽 + populateInventory + 热图标；R8 起记录 session.lastRefreshedHeated 供热态未变判定 |
 | refreshOpenSession | private void refreshOpenSession(Block, CookingPotData) | 1298 | 有打开会话则刷新其 GUI（取餐后等场景） |
 | refreshIngredientSlots | private static void refreshIngredientSlots(Inventory, CookingPotData) | 1305 | 数据→GUI 食材槽 |
 | refreshIngredientSlots | private static void refreshIngredientSlots(Inventory, CookingPotData, CookingSession) | 1311 | 上者 + 清 skipNextIngredientRead |
-| refreshSlot | private static void refreshSlot(Inventory, int, ItemStack) | 1316 | 写单槽（空写 null，否则 clone） |
+| refreshSlot | private static void refreshSlot(Inventory, int, ItemStack) | 1316 | 写单槽：空写 null，非空直传（R8 起去掉外层预克隆——writeSlot 写时自带克隆，原稳态每槽每 tick 一次克隆被丢弃） |
 | writeSlot | private static void writeSlot(Inventory, int, ItemStack) | 1320 | 差异写入：itemsEqual 才 setItem（减少发包） |
 | itemTranslationKey | private String itemTranslationKey(ItemStack) | 1324 | CE 物品翻译键，回退原版 type 键 |
 | translAtable | private Component translAtable(String) | 1331 | 物品 ID → 灰色非斜体 translatable 组件 |
