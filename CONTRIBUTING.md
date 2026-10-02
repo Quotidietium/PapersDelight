@@ -47,8 +47,10 @@
 - 位置：基准源码 `benchmark/src/`（由根项目 `benchmark` source set 编译，输出 `benchmark/classes`）。
 - 协议：warmup ≥2.5s → 7 trials × ≥0.7s，取中位 ns/op；blackhole 防死码消除；先 self-check 后测量。
 - 运行时依赖由 `./gradlew benchmarkRuntime` 拷贝到 `benchmark/lib/runtime/`；被测 jar 放 `benchmark/lib/<label>/plugin.jar`。
-- 结果 JSON 落 `benchmark/results/<label>.json`；对比报告由 `benchmark/compare.py` 生成到 `note/report/perf/`。
-- 新增优化点必须同步新增/扩展对应 bench，保证可量化。
+- 结果 JSON 落 `benchmark/results/<label>/<group>.json`（每组一个独立 JVM：recipe/common/config/heat/container/text，避免跨组 JIT 干扰）；对比报告由 `benchmark/compare.py` 生成到 `note/report/perf/`。
+- **基准运行期间禁止改动 runner/基准源码**：run-bench.sh 逐组起 JVM，中途修改脚本或重编译 benchmark classes 会造成同标签各组使用不同基准代码（实测事故：运行中把新组写入脚本，旧类 JVM 抛 unknown group 中止）。
+- 基线/候选各至少 2 个样本标签（每基准取最小值聚合）；看守基准出现临界劣化时追加第 3/4 样本以分布证据判定（JIT 双峰抖动处置样例见 note/report/perf/03 热源组）。
+- 新增优化点必须同步新增/扩展对应 bench，保证可量化；确属服务端绑定（CE/ItemStack 运行时）无法离线度量的，报告必须明示并以调用消除方式论证，禁止编造替代数字。
 
 ## 6. 代码约定
 

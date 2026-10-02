@@ -101,31 +101,37 @@ graph LR
 
 **注册/查询流程详解**：主类 `PapersDelight.java` L198 实例化 RecipeManager；registration 模块解析配方 YAML 后调用 `publishRuntimeConfig` 一次性构建 Trie 并发布（写少读多，读写均无锁）；烹饪锅/煎锅/砧板管理器在玩家放入物品时调 `findMatch` 拿到一致快照做匹配。reload 时 `captureRuntimeState` → 重解析 → 失败则 `restoreRuntimeState` 回滚，保证线上服务不中断。
 
-### 2.2 RecipeTrie（`recipe/RecipeTrie.java`，101 行）
+### 2.2 RecipeTrie（`recipe/RecipeTrie.java`，274 行）
 
-**职责**：以「原料数量分根 + stableKey 排序路径」的前缀树实现无序多重集合配方索引，提供 insert 与 DFS 回溯匹配。
+**职责**：以「原料数量分根 + stableKey 排序路径」的前缀树实现无序多重集合配方索引；R1 起采用**可变建树 + 惰性冻结**双形态：insert 阶段在可变 TrieNode 上构建（LinkedHashMap 保插入序=匹配优先级），首次查询时无锁冻结为数组化 Frozen 结构（FrozenNode: matchers/children 数组），查询全程零装箱零子节点查找开销。
 **继承/接口**：无继承，`final` 类；依赖外部 API `ItemMatcherResolver<ItemStack>`。
-**关键字段**：`roots`（L16，`Map<Integer, TrieNode>` 原料数→子树根）；`resolver`（L17，匹配解析器）。
+**关键字段**：`roots`（L29，`Map<Integer, TrieNode>` 原料数→子树根，仅建树期）；`resolver`（匹配解析器）；`frozen`（volatile，@Nullable Frozen——惰性冻结缓存，insert 置 null 失效，benign-race 重建）。
 
 **方法清单表**：
 
 | 方法 | 签名 | 行号 | 行为说明 |
 | --- | --- | --- | --- |
-| RecipeTrie | `public RecipeTrie()` | 19 | 委托重载构造器，使用 DefaultItemMatcherResolver.INSTANCE |
-| RecipeTrie | `RecipeTrie(ItemMatcherResolver<ItemStack> resolver)` | 23 | 包私有：注入自定义解析器（测试/特殊场景） |
-| insert | `public void insert(CookingRecipe recipe)` | 27 | 按原料数取/建根；原料按 stableKey 排序后逐层 computeIfAbsent 子节点；沿途补挂 matcher；叶子处仅首个配方生效 |
-| findMatch | `@Nullable public CookingRecipe findMatch(ItemStack[] inputs)` | 42 | 收集非空物品；空集或无对应数量根返回 null；否则转调泛型 findMatch |
-| findMatch | `<T> @Nullable CookingRecipe findMatch(List<T> inputs, ItemMatcherResolver<? super T> resolver)` | 55 | 包私有泛型版本：与 ItemStack 解耦，供测试直接传入替代解析器 |
-| dfsMatch | `private <T> CookingRecipe dfsMatch(TrieNode, List<T>, ItemMatcherResolver<? super T>, boolean[], int)` | 63 | 核心递归：深度==输入数返回 node.recipe；否则遍历子节点 matcher × 未用输入，标记 used 后下探，失败回溯 |
-| ingredientKey | `static String ingredientKey(IngredientDef def)` | 82 | 包私有：暴露 `def.matcher().stableKey()` 作为规范化键 |
-| size | `public int size()` | 86 | 递归统计全树 recipe 非空的节点数 |
-| countRecipes | `private int countRecipes(TrieNode node)` | 94 | 单子树递归计数辅助 |
+| RecipeTrie | `public RecipeTrie()` | 35 | 委托重载构造器，使用 DefaultItemMatcherResolver.INSTANCE |
+| RecipeTrie | `RecipeTrie(ItemMatcherResolver<ItemStack> resolver)` | 39 | 包私有：注入自定义解析器（测试/基准直驱） |
+| insert | `public void insert(CookingRecipe recipe)` | 43 | 按原料数取/建根；原料按 stableKey 排序后逐层 computeIfAbsent 子节点；沿途补挂 matcher；叶子处仅首个配方生效（first-insert-wins）；置 frozen=null 失效 |
+| findMatch | `@Nullable public CookingRecipe findMatch(ItemStack[] inputs)` | 60 | 计数非空并压实为小数组；≤64 槽走位掩码 DFS，否则 used 数组 DFS；无对应数量根返回 null |
+| findMatch | `<T> @Nullable CookingRecipe findMatch(List<T> inputs, ItemMatcherResolver<? super T> resolver)` | 95 | 包私有泛型版本：与 ItemStack 解耦（基准直驱入口），掩码/used 双路径同上 |
+| frozenOrBuild | `private Frozen frozenOrBuild()` | 128 | 惰性冻结：volatile 读 → 缺则 buildFrozen 写回（benign race，重复构建无害） |
+| buildFrozen | `private Frozen buildFrozen()` | 136 | 遍历可变树，按数量根数组化：freeze 递归 + sizes 索引 + recipeCount |
+| freeze | `private static FrozenNode freeze(TrieNode node)` | 150 | 保留 LinkedHashMap 插入序转数组（匹配优先级不变）；叶子 recipe 一并迁移 |
+| dfsFrozenMask / dfsFrozenListMask | `private static <T> CookingRecipe dfsFrozenMask(FrozenNode, T[], int, resolver, long usedMask)` | 188/208 | R1 核心：long 位掩码标记已用槽，零分配递归；子节点序 × 输入序双循环，失败回溯 |
+| dfsFrozenUsed / dfsFrozenListUsed | `private static <T> CookingRecipe dfsFrozenUsed(FrozenNode, T[], int, resolver, boolean[] used)` | 228/252 | &gt;64 输入回退：used 数组版（复用并清零） |
+| FrozenNode | `private record FrozenNode(ItemMatcher[] matchers, FrozenNode[] children, @Nullable CookingRecipe recipe)` | 184 | 冻结节点：数组化子结构与匹配器 |
+| Frozen | `private static final class Frozen(int[] sizes, FrozenNode[] rootsBySize, int recipeCount)` | L163（紧凑构造器 L169，rootFor L171） | 冻结快照类：sizes→rootsBySize 索引 |
+| ingredientKey | `static String ingredientKey(IngredientDef def)` | 102 | 包私有：暴露 `def.matcher().stableKey()` 作为规范化键 |
+| size | `public int size()` | 106 | 优先取冻结快照 recipeCount，未冻结则递归统计 |
+| countRecipes | `private int countRecipes(TrieNode node)` | 116 | 可变树递归计数辅助 |
 
-**插入/匹配算法（含 TagExpander 标签展开）**：insert 的排序保证 `{A,B}` 与 `{B,A}` 两种声明走向同一路径；dfsMatch 每层做「子节点 matcher 是否接受某未用物品」的双循环，等价于树上二分图匹配。matcher 对物品的判定最终落到 `DefaultItemMatcherResolver`：`matchesItem` 走 CraftEngine 物品判定；`matchesTag` 走 `TagExpander.anyMatch`——传入空标签表，tagPredicate 检查 CraftEngine 运行时标签与原版 Bukkit Tag，itemPredicate 检查具体物品 id，任一命中短路返回；`matchesAdvancedTag` 走 AdvancedTagParser 活跃快照的 `containsItem`。
+**插入/匹配算法（含 TagExpander 标签展开）**：insert 的排序保证 `{A,B}` 与 `{B,A}` 两种声明走向同一路径；冻结后 dfsFrozen* 每层做「子节点 matcher 是否接受某未用物品」的双循环（位掩码版以 usedMask 的位测试替代数组读写），等价于树上二分图匹配，子节点数组序=原 LinkedHashMap 插入序=匹配优先级（行为顺序保持）。matcher 对物品的判定最终落到 `DefaultItemMatcherResolver`：`matchesItem` 走 CraftEngine 物品判定；`matchesTag` 走 `TagExpander.anyMatch`——传入空标签表，tagPredicate 检查 CraftEngine 运行时标签与原版 Bukkit Tag，itemPredicate 检查具体物品 id，任一命中短路返回；`matchesAdvancedTag` 走 AdvancedTagParser 活跃快照的 `containsItem`。
 
 ### 2.3 TrieNode（`recipe/TrieNode.java`，15 行）
 
-**职责**：Trie 节点，包私有数据载体。
+**职责**：Trie 可变建树节点，包私有数据载体；仅 insert/freeze 阶段使用，查询走冻结结构。
 **继承/接口**：无。
 **关键字段**：`children`（L10，LinkedHashMap 保插入序）；`matcher`（L11，@Nullable ItemMatcher，插入时沿途补挂供匹配用）；`recipe`（L13，@Nullable CookingRecipe，仅叶子记录首个到达的配方）。
 
@@ -135,11 +141,11 @@ graph LR
 | --- | --- | --- | --- |
 | — | 无方法，纯数据类 | — | 三个字段构成；LinkedHashMap 维持子节点确定性遍历顺序，保证 dfsMatch 结果可复现 |
 
-### 2.4 DefaultItemMatcherResolver（`recipe/DefaultItemMatcherResolver.java`，77 行）
+### 2.4 DefaultItemMatcherResolver（`recipe/DefaultItemMatcherResolver.java`，82 行）
 
 **职责**：ItemMatcherResolver 的默认实现——把「物品 id / 标签 / 高级标签」三种匹配意图落到 CraftEngine 与 Bukkit 的实际判定上；单例 INSTANCE 被全项目共享。
 **继承/接口**：`implements ItemMatcherResolver<ItemStack>`（外部 dev.tako API），`final` 类。
-**关键字段**：`INSTANCE`（L21，静态单例）；`advancedTags`（L23，`Supplier<AdvancedTagSnapshot>`，默认指向 AdvancedTagParser::activeSnapshot，可注入以便测试）。
+**关键字段**：`INSTANCE`（L21，静态单例）；`advancedTags`（`Supplier<AdvancedTagSnapshot>`，默认指向 AdvancedTagParser::activeSnapshot，可注入以便测试）；`NS_KEYS`/`CE_KEYS`（L61-62，R1 新增：tagId→NamespacedKey/CE Key 的 ConcurrentHashMap 缓存——NamespacedKey.fromString 每次解析成本被摊销；fromString 返回 null 不入缓存）。
 
 **方法清单表**：
 
@@ -148,11 +154,12 @@ graph LR
 | DefaultItemMatcherResolver | `public DefaultItemMatcherResolver()` | 25 | 默认构造：高级标签供应者 = AdvancedTagParser::activeSnapshot |
 | DefaultItemMatcherResolver | `DefaultItemMatcherResolver(Supplier<AdvancedTagSnapshot>)` | 29 | 包私有：注入快照供应者 |
 | matchesItem | `@Override public boolean matchesItem(ItemStack item, String itemId)` | 33 | 委托 CraftEngineUtil.isItem 做具体物品 id 判定 |
-| matchesTag | `@Override public boolean matchesTag(ItemStack item, String tagId)` | 38 | 空值防御后调 TagExpander.anyMatch；tagPredicate=matchesRuntimeTag，itemPredicate=matchesItem；支持嵌套 tag 递归短路 |
+| matchesTag | `@Override public boolean matchesTag(ItemStack item, String tagId)` | 39 | 空值防御后调 TagExpander.anyMatch；tagPredicate=matchesRuntimeTag（R1 起内部直接小写后转发），itemPredicate=matchesItem；支持嵌套 tag 递归短路 |
 | matchesAdvancedTag | `@Override public boolean matchesAdvancedTag(ItemStack item, String tagId)` | 49 | 取 CE 物品标识符，查活跃高级标签快照 containsItem；任何 RuntimeException 视为不匹配（防御性降级） |
-| matchesRuntimeTag | `private static boolean matchesRuntimeTag(ItemStack item, String tagId)` | 63 | 先试 CraftEngineItems.byItemStack 的运行时标签；CE 自定义物品未命中则直接否；否则回落 Bukkit.getTag(REGISTRY_ITEMS) 的 Material 标签；全程 Throwable 吞掉保证不因 CE 异常中断匹配 |
+| matchesRuntimeTag | `private static boolean matchesRuntimeTag(ItemStack item, String tagId)` | 64 | 先经 CE_KEYS 缓存取 CE Key 试 CraftEngineItems.byItemStack 的运行时标签；CE 自定义物品未命中则直接否；否则经 NS_KEYS 缓存取 NamespacedKey 回落 Bukkit.getTag(REGISTRY_ITEMS) 的 Material 标签；全程 Throwable 吞掉保证不因 CE 异常中断匹配 |
+| ceKey | `private static Key ceKey(String tagId)` | 79 | CE Key 缓存包装（R1） |
 
-### 2.5 TagExpander（`recipe/TagExpander.java`，70 行）
+### 2.5 TagExpander（`recipe/TagExpander.java`，75 行）
 
 **职责**：标签展开/匹配的纯函数工具。支持 `#嵌套标签` 递归展开与防环（visited 集合），既可物化展开为物品 id 列表，也可谓词短路匹配。
 **继承/接口**：无，工具类（私有构造器）。
@@ -164,9 +171,9 @@ graph LR
 | --- | --- | --- | --- |
 | TagExpander | `private TagExpander()` | 13 | 禁止实例化 |
 | expand | `public static List<String> expand(Map<String, List<String>> tags, String rootTag)` | 16 | 从 rootTag 递归展开：`#` 前缀成员递归下钻，普通成员收集进结果；visited 防环、未知标签静默忽略 |
-| anyMatch | `public static boolean anyMatch(Map<String, List<String>>, String, Predicate<String>, Predicate<String>)` | 22 | 短路版展开：先 tagPredicate 测标签本身，再对成员物品测 itemPredicate，命中立即 true；同样防环 |
+| anyMatch | `public static boolean anyMatch(Map<String, List<String>>, String, Predicate<String>, Predicate<String>)` | 22 | 短路版展开：**空标签表时直接 tagPredicate 测根标签返回**（R1 快路径，等价于 anyMatch0 空表行为）；非空表先测标签本身再对成员物品测 itemPredicate，命中立即 true；非空路径 HashSet 预容量；防环 |
 | expandInto | `private static void expandInto(Map, String tagName, List<String> out, Set<String> visited)` | 31 | expand 的递归实现，小写规范化标签名 |
-| anyMatch0 | `private static boolean anyMatch0(Map, String, Predicate, Predicate, Set<String>)` | 44 | anyMatch 的递归实现 |
+| anyMatch0 | `private static boolean anyMatch0(Map, String, Predicate, Predicate, Set<String>)` | 49 | anyMatch 的递归实现（空表情形已由 anyMatch 快路径承接） |
 | normalizeTag | `private static String normalizeTag(String tagName)` | 67 | Locale.ROOT 小写规范化，保证大小写不敏感的标签寻址 |
 
 ### 2.6 CampfireRecipeUtil（`recipe/CampfireRecipeUtil.java`，64 行）
@@ -601,26 +608,28 @@ graph LR
 | setLore | `public static void setLore(ItemMeta meta, List<String> lore)` | 72 | 逐行 TextUtil.parseList 后 lore |
 | applyColor | `public static boolean applyColor(ItemMeta meta, @Nullable Integer color)` | 77 | RGB 颜色仅对 LeatherArmorMeta 与 PotionMeta 生效，其余类型 false |
 
-### 2.26 TextUtil（`util/TextUtil.java`，84 行）
+### 2.26 TextUtil（`util/TextUtil.java`，124 行）
 
 **职责**：统一文本解析：PlaceholderAPI 变量（可选依赖）→ MiniMessage（检测到标签语法才启用）→ Legacy（& 转 §）的三级回退管线。
 **继承/接口**：无，静态工具类。
-**关键字段**：`LEGACY/MINI_MESSAGE`（L16-17，序列化器单例）；`MINI_MESSAGE_DETECT`（L19，`<[a-zA-Z#][^>]*>` 检测正则）；`papiAvailable`（L21，volatile 供应者，默认 false）。
+**关键字段**：`LEGACY/MINI_MESSAGE`（L20-21，序列化器单例）；`PARSE_CACHE/PARSE_CACHE_MAX/PARSE_CACHE_COUNT`（L27-30，R4 新增：解析结果缓存，仅无 PAPI 替换（resolved==text）时启用——此时输出为纯函数，adventure Component 不可变可安全共享；上限 8192，无需失效）；`papiAvailable`（L24，volatile 供应者，默认 false）。原 `MINI_MESSAGE_DETECT` 正则已由零分配扫描 `hasMiniMessageTag` 等价替代（等价性经基准自检构造语料+万例模糊验证）。
 
 **方法清单表**：
 
 | 方法 | 签名 | 行号 | 行为说明 |
 | --- | --- | --- | --- |
-| setPapiAvailability | `public static void setPapiAvailability(BooleanSupplier supplier)` | 23 | 由主类在启动时注入 PAPI 存在性探测（null 归一为恒 false） |
-| isPapiAvailable | `private static boolean isPapiAvailable()` | 27 | 调供应者，Throwable 视为不可用 |
-| TextUtil | `private TextUtil()` | 35 | 禁止实例化 |
-| parse | `public static Component parse(String text)` | 38 | 无玩家重载 |
-| parse | `public static Component parse(Player player, String text)` | 42 | 核心：空串→empty；玩家在场 + PAPI 可用 + 含 % 才做变量替换；检测到 MiniMessage 标签先尝试 MM 反序列化（异常吞掉）；最终回退 Legacy（&→§） |
-| parse | `public static Component parse(CommandSender sender, String text)` | 60 | 发送者是 Player 则带玩家解析，否则按无玩家 |
-| parseList | `public static List<Component> parseList(List<String> lines)` | 65 | 无玩家逐行解析；null/空表返回 List.of |
-| parseList | `public static List<Component> parseList(Player, List<String>)` | 69 | 带玩家逐行解析 |
-| legacy | `@Deprecated public static Component legacy(String text)` | 75 | 旧版直通 Legacy 反序列化 |
-| legacyList | `@Deprecated public static List<Component> legacyList(List<String>)` | 79 | 旧版逐行 Legacy |
+| setPapiAvailability | `public static void setPapiAvailability(BooleanSupplier supplier)` | 32 | 由主类在启动时注入 PAPI 存在性探测（null 归一为恒 false） |
+| isPapiAvailable | `private static boolean isPapiAvailable()` | 36 | 调供应者，Throwable 视为不可用 |
+| TextUtil | `private TextUtil()` | 44 | 禁止实例化 |
+| parse | `public static Component parse(String text)` | 47 | 无玩家重载 |
+| parse | `public static Component parse(Player player, String text)` | 51 | 核心：空串→empty；玩家在场 + PAPI 可用 + 含 % 才做变量替换；无替换（resolved==text）时走解析缓存（R4）；parseUncached：hasMiniMessageTag 命中先 MM 反序列化（异常吞掉），回退 Legacy（&→§） |
+| parseUncached | `private static Component parseUncached(String resolved)` | 72 | 实际解析管线（R4 从 parse 拆出） |
+| hasMiniMessageTag | `static boolean hasMiniMessageTag(String s)` | 84 | 零分配标签扫描，与原正则 `<[a-zA-Z#][^>]*>` 逐例等价（含 `<!i>` 不单独触发等边角语义，R4） |
+| parse | `public static Component parse(CommandSender sender, String text)` | 100 | 发送者是 Player 则带玩家解析，否则按无玩家 |
+| parseList | `public static List<Component> parseList(List<String> lines)` | 105 | 无玩家逐行解析；null/空表返回 List.of |
+| parseList | `public static List<Component> parseList(Player, List<String>)` | 109 | 带玩家逐行解析 |
+| legacy | `@Deprecated public static Component legacy(String text)` | 115 | 旧版直通 Legacy 反序列化 |
+| legacyList | `@Deprecated public static List<Component> legacyList(List<String>)` | 120 | 旧版逐行 Legacy |
 
 ### 2.27 ReflectionHandles（`util/ReflectionHandles.java`，61 行）
 

@@ -44,6 +44,12 @@ public final class TextUtil {
     private TextUtil() {
     }
 
+    /** 基准隔离钩子：清空解析缓存（仅 benchmark 源集调用；生产无失效需求） */
+    static void clearParseCacheForBenchmark() {
+        PARSE_CACHE.clear();
+        PARSE_CACHE_COUNT.set(0);
+    }
+
     public static Component parse(String text) {
         return parse(null, text);
     }

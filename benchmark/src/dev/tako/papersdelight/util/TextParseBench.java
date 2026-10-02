@@ -68,19 +68,18 @@ public final class TextParseBench {
 
     public static void run(List<Result> results) {
         selfCheck();
+        // 动态键基准会填满缓存上限、毒化后续行——每个基准前清空（旧 jar 无钩子则跳过：
+        // 旧 jar 无缓存，本就无状态可毒化）
+        Runnable clear = clearHook();
 
+        clear.run();
         results.add(Bench.measure("text.parse[mm-tag,static-pool]", (bh, ops) -> {
             for (int i = 0; i < ops; i++) {
                 bh.consume(TextUtil.parse(null, STATIC_POOL[i & 63]));
             }
         }));
 
-        results.add(Bench.measure("text.parse[mm-tag,dynamic-key]", (bh, ops) -> {
-            for (int i = 0; i < ops; i++) {
-                bh.consume(TextUtil.parse(null, "<!i><gray>动态 <white>#" + (i & 0xFFFF)));
-            }
-        }));
-
+        clear.run();
         String[] plains = {"&7普通说明文本", "plain lore line", "&a绿色&f带码", "短文本", "x", "&e标题文本行"};
         results.add(Bench.measure("text.parse[plain-legacy]", (bh, ops) -> {
             for (int i = 0; i < ops; i++) {
@@ -88,11 +87,36 @@ public final class TextParseBench {
             }
         }));
 
+        clear.run();
         results.add(Bench.measure("text.parseList[8-lines,static]", (bh, ops) -> {
             for (int i = 0; i < ops; i++) {
                 bh.consume(TextUtil.parseList(null, LORE_8));
             }
         }));
+
+        // 动态键基准最后跑：65536 个唯一键会填满 8192 上限，此后仅 miss 不再回填
+        clear.run();
+        results.add(Bench.measure("text.parse[mm-tag,dynamic-key]", (bh, ops) -> {
+            for (int i = 0; i < ops; i++) {
+                bh.consume(TextUtil.parse(null, "<!i><gray>动态 <white>#" + (i & 0xFFFF)));
+            }
+        }));
+    }
+
+    private static Runnable clearHook() {
+        try {
+            Method m = TextUtil.class.getDeclaredMethod("clearParseCacheForBenchmark");
+            m.setAccessible(true);
+            return () -> {
+                try {
+                    m.invoke(null);
+                } catch (ReflectiveOperationException e) {
+                    throw new IllegalStateException(e);
+                }
+            };
+        } catch (NoSuchMethodException e) {
+            return () -> { };
+        }
     }
 
     private static void selfCheck() {
